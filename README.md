@@ -1,5 +1,6 @@
 # Visual extendida para M5Stick-Plus-2
 Este repositorio proporciona una solución sencilla pero potente para visualizar en una pantalla grande (PC o móvil) los datos mostrados por el dispositivo M5Stick Plus 2 usando cualquier firmware en este caso el potente Evil-M5Project.
+
 <img width="618" height="518" alt="image" src="https://github.com/user-attachments/assets/1b4b76dc-c6fa-468a-b3b6-1a650f656cea" />
 
 El M5Stick Plus 2 cuenta con una pantalla muy reducida, lo que dificulta la lectura de datos escaneados, menús o actividad del firmware en tiempo real.
