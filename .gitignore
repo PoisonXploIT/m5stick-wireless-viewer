@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+*.log
+snapshots/
+wifi_scan_parsed.csv
+.idea/
+.vscode/
+*.egg-info/
+dist/
+build/
