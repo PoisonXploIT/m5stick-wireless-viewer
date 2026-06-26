@@ -1,6 +1,16 @@
-"""Captura periodica del dashboard web para respaldo offline."""
+#!/usr/bin/env python3
+"""
+Captura periodica del dashboard web para respaldo offline.
+Mejoras v2.0:
+  - Ctrl-C graceful sin traceback
+  - Backoff exponencial en errores consecutivos
+  - Estadisticas al cerrar
+"""
 import argparse
 import os
+import signal
+import sys
+
 import requests
 from datetime import datetime
 import time
@@ -14,9 +24,23 @@ def main():
     args = parser.parse_args()
 
     os.makedirs(args.dir, exist_ok=True)
-    print(f"[*] Capturando {args.url} cada {args.interval}s en {args.dir}/")
 
-    while True:
+    interrupted = False
+
+    def sig_handler(sig, frame):
+        nonlocal interrupted
+        interrupted = True
+
+    signal.signal(signal.SIGINT, sig_handler)
+
+    print(f"[*] Capturando {args.url} cada {args.interval}s en {args.dir}/")
+    print(f"[*] Ctrl+C para detener")
+
+    saved = 0
+    errors = 0
+    consecutive_errors = 0
+
+    while not interrupted:
         try:
             response = requests.get(args.url, timeout=10)
             response.raise_for_status()
@@ -25,9 +49,20 @@ def main():
             with open(filepath, "w", encoding="utf-8") as f:
                 f.write(response.text)
             print(f"[+] Guardado {filepath}")
+            saved += 1
+            consecutive_errors = 0
         except Exception as e:
-            print(f"[-] Error: {e}")
+            errors += 1
+            consecutive_errors += 1
+            backoff = min(args.interval * (2 ** consecutive_errors), 600)
+            print(f"[-] Error ({consecutive_errors} consecutivos): {e}")
+            print(f"    Reintentando en {backoff}s...")
+            time.sleep(backoff)
+            continue
+
         time.sleep(args.interval)
+
+    print(f"\n[*] Detenido. {saved} snapshots guardados, {errors} errores.")
 
 
 if __name__ == "__main__":
