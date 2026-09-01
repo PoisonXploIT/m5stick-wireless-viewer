@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel
+        run: |
+          pip install build
+          python -m build
+
+      - name: Create GitHub Release + artifacts
+        uses: softprops/action-gh-release@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          files: dist/*
+          generate_release_notes: true
+
+  pypi:
+    needs: release
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # obligatorio para trusted publishing (OIDC)
+    # Solo se ejecuta cuando el repo tenga definida la variable PUBLISH_TO_PYPI=true.
+    # Antes de activar: crear el proyecto en PyPI y configurar trusted publishing
+    # (PyPI: Settings -> Publishing -> Add new publisher, repo + tag pattern v*).
+    if: vars.PUBLISH_TO_PYPI == 'true'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build sdist + wheel
+        run: |
+          pip install build twine
+          python -m build
+
+      - name: Publish to PyPI (trusted publishing, sin token manual)
+        run: twine upload --non-interactive dist/*

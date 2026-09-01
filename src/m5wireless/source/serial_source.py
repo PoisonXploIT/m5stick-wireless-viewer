@@ -61,9 +61,7 @@ class SerialSource(AbstractSource):
         while self._running:
             queue: asyncio.Queue[Any] = asyncio.Queue()
             self._queue = queue
-            reader = threading.Thread(
-                target=self._reader, args=(queue, loop), daemon=True
-            )
+            reader = threading.Thread(target=self._reader, args=(queue, loop), daemon=True)
             reader.start()
             await self._consume(queue, callback)
             # Unir el hilo ANTES de volver a conectar o salir: asi ningun hilo
@@ -73,9 +71,7 @@ class SerialSource(AbstractSource):
                 break
             attempt += 1
             if attempt > self._max_retries:
-                logger.error(
-                    "agotados los %d reintentos de conexion serial", self._max_retries
-                )
+                logger.error("agotados los %d reintentos de conexion serial", self._max_retries)
                 self._running = False
                 break
             delay = min(self._base_backoff * (2 ** (attempt - 1)), self._max_backoff)
@@ -99,9 +95,7 @@ class SerialSource(AbstractSource):
         try:
             import serial  # dependencia opcional; import perezoso.
         except ImportError as exc:
-            raise RuntimeError(
-                "pyserial no esta instalado; instala el extra [serial]"
-            ) from exc
+            raise RuntimeError("pyserial no esta instalado; instala el extra [serial]") from exc
         port = self._port if self._port is not None else _autodetect()
         return serial.Serial(port=port, baudrate=self._baudrate, timeout=1)
 

@@ -21,7 +21,9 @@ class FileSource(AbstractSource):
     lineas nuevas que aparezcan en la cola siguen entregandose (en ``follow``).
     """
 
-    def __init__(self, path: str | Path, *, follow: bool = True, poll_interval: float = 0.1) -> None:
+    def __init__(
+        self, path: str | Path, *, follow: bool = True, poll_interval: float = 0.1
+    ) -> None:
         self._path = Path(path)
         self._follow = follow
         self._poll_interval = poll_interval

@@ -23,7 +23,16 @@ def test_version_prints_3_0_0(capsys: pytest.CaptureFixture[str]) -> None:
 def test_export_csv_offline(marauder_log_path: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.csv"
     rc = cli.main(
-        ["export", "csv", "--input", str(marauder_log_path), "--firmware", "marauder", "--output", str(output)]
+        [
+            "export",
+            "csv",
+            "--input",
+            str(marauder_log_path),
+            "--firmware",
+            "marauder",
+            "--output",
+            str(output),
+        ]
     )
     assert rc == 0
     with output.open("r", encoding="utf-8", newline="") as handle:
@@ -37,7 +46,16 @@ def test_export_csv_offline(marauder_log_path: Path, tmp_path: Path) -> None:
 def test_export_json_offline(marauder_log_path: Path, tmp_path: Path) -> None:
     output = tmp_path / "out.json"
     rc = cli.main(
-        ["export", "json", "--input", str(marauder_log_path), "--firmware", "marauder", "--output", str(output)]
+        [
+            "export",
+            "json",
+            "--input",
+            str(marauder_log_path),
+            "--firmware",
+            "marauder",
+            "--output",
+            str(output),
+        ]
     )
     assert rc == 0
     data = json.loads(output.read_text(encoding="utf-8"))
@@ -47,7 +65,16 @@ def test_export_json_offline(marauder_log_path: Path, tmp_path: Path) -> None:
 
 def test_export_missing_input_fails(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
     rc = cli.main(
-        ["export", "csv", "--input", str(tmp_path / "nope.log"), "--firmware", "marauder", "--output", str(tmp_path / "o.csv")]
+        [
+            "export",
+            "csv",
+            "--input",
+            str(tmp_path / "nope.log"),
+            "--firmware",
+            "marauder",
+            "--output",
+            str(tmp_path / "o.csv"),
+        ]
     )
     assert rc == 2
     assert "no existe" in capsys.readouterr().err
@@ -72,16 +99,22 @@ def test_snapshot_saves_html(tmp_path: Path) -> None:
 
     server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     port = server.server_address[1]
-    thread = threading.Thread(target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True)
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
+    )
     thread.start()
     try:
         rc = cli.main(
             [
                 "snapshot",
-                "--url", f"http://127.0.0.1:{port}",
-                "--interval", "0.05",
-                "--dir", str(tmp_path / "snaps"),
-                "--max", "2",
+                "--url",
+                f"http://127.0.0.1:{port}",
+                "--interval",
+                "0.05",
+                "--dir",
+                str(tmp_path / "snaps"),
+                "--max",
+                "2",
             ]
         )
     finally:
@@ -118,7 +151,12 @@ def test_splunk_exporter_built_only_with_url_and_token(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     # Sin URL/token: no exporter.
-    assert cli._build_splunk_exporter({"splunk_url": None, "splunk_token": "t", "splunk_verify_ssl": True}) is None
+    assert (
+        cli._build_splunk_exporter(
+            {"splunk_url": None, "splunk_token": "t", "splunk_verify_ssl": True}
+        )
+        is None
+    )
     monkeypatch.setenv("M5W_SPLUNK_HEC_URL", "https://splunk:8088/services/collector/event")
     monkeypatch.setenv("M5W_SPLUNK_HEC_TOKEN", "tok-abc")
     cfg = {

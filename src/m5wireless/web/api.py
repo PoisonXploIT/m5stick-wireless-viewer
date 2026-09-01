@@ -155,9 +155,7 @@ def get_client(mac: str, store: AbstractStore = Depends(get_store)) -> ClientRea
 # ---- export ----
 
 
-def _iter_csv_chunks(
-    rows: Iterator[ObservationRow], batch_size: int = 500
-) -> Iterator[str]:
+def _iter_csv_chunks(rows: Iterator[ObservationRow], batch_size: int = 500) -> Iterator[str]:
     buffer = io.StringIO()
     writer = csv.writer(buffer)
 

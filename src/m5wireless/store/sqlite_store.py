@@ -144,9 +144,7 @@ class SQLiteStore(AbstractStore):
         row = cursor.fetchone()
         if row is None:
             return None
-        clients_cursor = self._conn.execute(
-            "SELECT mac FROM clients WHERE bssid = ?", (bssid,)
-        )
+        clients_cursor = self._conn.execute("SELECT mac FROM clients WHERE bssid = ?", (bssid,))
         clients = {r["mac"] for r in clients_cursor.fetchall()}
         return Network(
             bssid=row["bssid"],
@@ -203,9 +201,7 @@ class SQLiteStore(AbstractStore):
     def get_recent_observations(self, limit: int) -> list[ObservationRow]:
         if limit <= 0:
             return []
-        cursor = self._conn.execute(
-            "SELECT * FROM observations ORDER BY id DESC LIMIT ?", (limit,)
-        )
+        cursor = self._conn.execute("SELECT * FROM observations ORDER BY id DESC LIMIT ?", (limit,))
         rows = cursor.fetchall()
         result: list[ObservationRow] = []
         for r in reversed(rows):
@@ -234,9 +230,7 @@ class SQLiteStore(AbstractStore):
         if until is not None:
             clauses.append("last_seen <= ?")
             params.append(_iso(until))
-        cursor = self._conn.execute(
-            f"SELECT * FROM networks WHERE {' AND '.join(clauses)}", params
-        )
+        cursor = self._conn.execute(f"SELECT * FROM networks WHERE {' AND '.join(clauses)}", params)
         result: list[Network] = []
         for row in cursor.fetchall():
             clients_cursor = self._conn.execute(
@@ -261,9 +255,7 @@ class SQLiteStore(AbstractStore):
         if associated_to is None:
             cursor = self._conn.execute("SELECT * FROM clients")
         else:
-            cursor = self._conn.execute(
-                "SELECT * FROM clients WHERE bssid = ?", (associated_to,)
-            )
+            cursor = self._conn.execute("SELECT * FROM clients WHERE bssid = ?", (associated_to,))
         return [
             Client(
                 mac=r["mac"],
@@ -309,8 +301,7 @@ class SQLiteStore(AbstractStore):
 
     def get_channel_distribution(self) -> dict[int, int]:
         cursor = self._conn.execute(
-            "SELECT channel, COUNT(*) AS n FROM networks "
-            "WHERE channel IS NOT NULL GROUP BY channel"
+            "SELECT channel, COUNT(*) AS n FROM networks WHERE channel IS NOT NULL GROUP BY channel"
         )
         return {int(r["channel"]): int(r["n"]) for r in cursor.fetchall()}
 
@@ -318,9 +309,7 @@ class SQLiteStore(AbstractStore):
     def prune_older_than(self, days: int, *, reference: datetime | None = None) -> int:
         ref = reference if reference is not None else utc_now()
         cutoff = _iso(ref - timedelta(days=days))
-        cursor = self._conn.execute(
-            "DELETE FROM observations WHERE timestamp < ?", (cutoff,)
-        )
+        cursor = self._conn.execute("DELETE FROM observations WHERE timestamp < ?", (cutoff,))
         self._conn.commit()
         return cursor.rowcount
 

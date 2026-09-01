@@ -84,7 +84,9 @@ def test_malformed_lines_produce_no_events(malformed_log_path: Path) -> None:
     assert stats["errors"] == 0
 
 
-def test_composite_routes_mixed_firmware(tmp_path: Path, marauder_log: str, evil_m5project_log: str) -> None:
+def test_composite_routes_mixed_firmware(
+    tmp_path: Path, marauder_log: str, evil_m5project_log: str
+) -> None:
     mixed = tmp_path / "mixed.log"
     mixed.write_text(marauder_log + "\n" + evil_m5project_log, encoding="utf-8")
 

@@ -276,13 +276,25 @@ fixtures reales. Reglas: ruff + mypy --strict limpios sobre src/m5wireless, comm
 en espanol sin emojis, smoke test de navegador con CDP para cambios de frontend.
 ```
 
+### Fase 6/7 (release engineering) - prep local completada, acciones remotas pendientes del usuario
+
+Cambios:
+- `.github/workflows/ci.yml`: matriz Python 3.11/3.12; `ruff check`, `ruff format --check`, `mypy --strict src/m5wireless`, `pytest --cov=m5wireless`.
+- `.github/workflows/release.yml`: trigger en tag `v*`; build sdist+wheel, GitHub Release con artifacts (softprops/action-gh-release); job `pypi` con trusted publishing (OIDC, sin token manual) que solo corre si la variable de repo `PUBLISH_TO_PYPI=true`.
+- `ruff format` aplicado a src/tests (11 ficheros; mypy --strict y 103 tests siguen limpios).
+- `.gitignore`: añadidos `*.db`, `*.log`, `snapshots/`.
+- `pyproject.toml`: `pytest-cov>=5` en extra `[dev]` (lo usa CI).
+- `docs/legacy-wifi-marauder-viewer-README.md`: borrador del aviso de fusion para el README de wifi-marauder-viewer antes de archivarlo.
+
+Pendiente (acciones remotas, requieren confirmacion): repo remoto (renombrar Visualizacion_extendida_M5StickPlus2 -> m5stick-wireless-viewer), `git remote add` + push, tag v3.0.0, archivar wifi-marauder-viewer, PyPI (crear proyecto + trusted publisher).
+
 ---
 
 ## Pendientes / riesgos abiertos
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
 - **Fase 0 incompleta**: falta repo remoto y `git remote add` (acción del usuario).
-- **Python version note**: `pyproject` pide >=3.10 (dataclass slots + union types en runtime).
+- **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo
 

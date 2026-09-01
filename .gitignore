@@ -7,6 +7,9 @@ build/
 .mypy_cache/
 .ruff_cache/
 m5wireless.db
+*.db
+*.log
+snapshots/
 logs/
 .coverage
 htmlcov/

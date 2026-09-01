@@ -32,9 +32,7 @@ def _net(bssid: str, ssid=None, channel=None, rssi=None) -> Network:
 
 
 def _network_seen(net: Network, at: datetime) -> NetworkSeen:
-    return NetworkSeen(
-        timestamp=at, firmware="marauder", source="file", raw_line="x", network=net
-    )
+    return NetworkSeen(timestamp=at, firmware="marauder", source="file", raw_line="x", network=net)
 
 
 def _client_associated(mac: str, bssid: str | None, at: datetime) -> ClientAssociated:

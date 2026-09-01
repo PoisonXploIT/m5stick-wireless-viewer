@@ -201,7 +201,10 @@ def test_submit_from_foreign_threads_is_thread_safe() -> None:
         exporter = make_exporter(handler, batch_size=50)
         await exporter.start()
         try:
-            threads = [threading.Thread(target=lambda: [exporter.submit(_event(i)) for i in range(20)]) for _ in range(4)]
+            threads = [
+                threading.Thread(target=lambda: [exporter.submit(_event(i)) for i in range(20)])
+                for _ in range(4)
+            ]
             for t in threads:
                 t.start()
             for t in threads:

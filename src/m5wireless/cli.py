@@ -89,7 +89,10 @@ def _find_config_file(explicit: str | None) -> Path | None:
     if explicit is not None:
         path = Path(explicit)
         return path if path.exists() else None
-    candidates = (Path("m5wireless.toml"), Path.home() / ".config" / "m5wireless" / "m5wireless.toml")
+    candidates = (
+        Path("m5wireless.toml"),
+        Path.home() / ".config" / "m5wireless" / "m5wireless.toml",
+    )
     for candidate in candidates:
         if candidate.exists():
             return candidate
@@ -292,7 +295,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     run_p = subparsers.add_parser("run", help="captura + dashboard web (por defecto)")
     run_p.add_argument("--source", choices=("serial", "file"), default=None)
-    run_p.add_argument("--port", default=None, help="puerto serial (p. ej. COM3); None = autodetección")
+    run_p.add_argument(
+        "--port", default=None, help="puerto serial (p. ej. COM3); None = autodetección"
+    )
     run_p.add_argument("--baudrate", type=int, default=None)
     run_p.add_argument("--log-path", default=None, help="fichero del log (source=file)")
     run_p.add_argument("--firmware", default=None, help="auto | marauder | evil_m5project")
@@ -315,7 +320,9 @@ def build_parser() -> argparse.ArgumentParser:
     snap_p.add_argument("--url", default="http://localhost:8000")
     snap_p.add_argument("--interval", type=float, default=60.0)
     snap_p.add_argument("--dir", default="snapshots")
-    snap_p.add_argument("--max", type=int, default=None, help="número máximo de snapshots (debug/tests)")
+    snap_p.add_argument(
+        "--max", type=int, default=None, help="número máximo de snapshots (debug/tests)"
+    )
     snap_p.set_defaults(func=_cmd_snapshot)
 
     return parser

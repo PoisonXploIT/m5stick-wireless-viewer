@@ -113,5 +113,3 @@ class EvilM5ProjectParser(AbstractParser):
             )
 
         return None
-
-
