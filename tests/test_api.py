@@ -38,12 +38,11 @@ def client(seeded_store: MemoryStore) -> TestClient:
 
 
 def test_root(client: TestClient) -> None:
+    # Fase 4: `/` sirve el dashboard HTML (antes era un JSON placeholder).
     res = client.get("/")
     assert res.status_code == 200
-    body = res.json()
-    assert body["status"] == "ok"
-    assert body["phase"] == 3
-    assert "GET /api/events" in body["endpoints"]
+    assert "text/html" in res.headers["content-type"]
+    assert 'id="networks-table"' in res.text
 
 
 # ---- health ----

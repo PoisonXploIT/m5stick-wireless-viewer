@@ -104,6 +104,9 @@ class AbstractStore(ABC):
     ) -> Iterator[ObservationRow]: ...
 
     @abstractmethod
+    def get_recent_observations(self, limit: int) -> list[ObservationRow]: ...
+
+    @abstractmethod
     def get_networks(
         self, *, since: datetime | None = None, until: datetime | None = None
     ) -> list[Network]: ...

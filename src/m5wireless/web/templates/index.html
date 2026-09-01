@@ -2,22 +2,90 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
-    <title>m5wireless</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>m5wireless — dashboard</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
   </head>
   <body>
-    <!-- Placeholder Fase 3: el dashboard real con SSE llega en Fase 4. -->
-    <h1>m5wireless</h1>
-    <p>API REST y stream de eventos en vivo. Endpoints:</p>
-    <ul>
-      <li><code>GET /api/health</code></li>
-      <li><code>GET /api/networks</code></li>
-      <li><code>GET /api/networks/{bssid}</code></li>
-      <li><code>GET /api/clients</code></li>
-      <li><code>GET /api/clients/{mac}</code></li>
-      <li><code>GET /api/export/csv</code></li>
-      <li><code>GET /api/export/json</code></li>
-      <li><code>GET /api/stats/channels</code></li>
-      <li><code>GET /api/events</code> (SSE)</li>
-    </ul>
+    <header class="topbar">
+      <h1>m5wireless</h1>
+      <span id="sse-status" class="status status-offline">SSE: desconectado</span>
+    </header>
+
+    <section class="stats" aria-label="Contadores">
+      <div class="stat">
+        <span class="stat-value" id="count-networks">0</span>
+        <span class="stat-label">redes</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value" id="count-clients">0</span>
+        <span class="stat-label">clientes</span>
+      </div>
+      <div class="stat">
+        <span class="stat-value stat-value-small" id="meta-source">—</span>
+        <span class="stat-label">fuente</span>
+      </div>
+    </section>
+
+    <section class="filters" aria-label="Filtros">
+      <input
+        id="filter-text"
+        class="filter-input"
+        type="search"
+        placeholder="Buscar SSID / BSSID"
+        autocomplete="off"
+      />
+      <select id="filter-channel" class="filter-select" aria-label="Filtro por canal">
+        <option value="">Canal: todos</option>
+      </select>
+      <input
+        id="filter-rssi"
+        class="filter-input filter-input-narrow"
+        type="number"
+        min="-100"
+        max="0"
+        placeholder="RSSI mín."
+      />
+    </section>
+
+    <main class="grid">
+      <section class="panel" aria-label="Redes">
+        <div class="table-wrap">
+          <table id="networks-table">
+            <thead>
+              <tr>
+                <th data-key="ssid" scope="col"><button type="button" class="sort-btn">SSID</button></th>
+                <th data-key="bssid" scope="col"><button type="button" class="sort-btn">BSSID</button></th>
+                <th data-key="channel" scope="col"><button type="button" class="sort-btn">Canal</button></th>
+                <th data-key="rssi" scope="col"><button type="button" class="sort-btn">RSSI</button></th>
+                <th data-key="n_clients" scope="col"><button type="button" class="sort-btn">Clientes</button></th>
+                <th data-key="last_seen" scope="col"><button type="button" class="sort-btn">Última vista</button></th>
+              </tr>
+            </thead>
+            <tbody id="networks-body"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="panel console-panel" aria-label="Consola serial">
+        <h2>Consola serial</h2>
+        <pre id="console" class="console"></pre>
+      </section>
+
+      <section class="panel channels-panel" aria-label="Distribución por canal">
+        <h2>Distribución por canal</h2>
+        <ul id="channels" class="channels"></ul>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <a href="/api/export/csv">Export CSV</a>
+      <span aria-hidden="true">·</span>
+      <a href="/api/export/json">Export JSON</a>
+      <span aria-hidden="true">·</span>
+      <a href="/api/health">Health</a>
+    </footer>
+
+    <script src="/static/js/dashboard.js" defer></script>
   </body>
 </html>

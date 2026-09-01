@@ -155,3 +155,23 @@ def test_prune_older_than_keeps_recent_drops_old(store: AbstractStore) -> None:
     for bssid in ("aa:00:00:00:00:10", "aa:00:00:00:00:11", BSSID_A):
         all_rows.extend(store.get_network_history(bssid))
     assert len(all_rows) == 1
+
+
+def test_get_recent_observations_limit_and_order(store: AbstractStore) -> None:
+    for i in range(5):
+        store.apply(
+            NetworkSeen(
+                timestamp=NOW + timedelta(seconds=i),
+                firmware="marauder",
+                source="file",
+                raw_line=f"line {i}",
+                network=_net(BSSID_A, "Net", 6, -70),
+            )
+        )
+
+    recent = store.get_recent_observations(3)
+    # las 3 ultimas, de la mas antigua a la mas reciente.
+    assert [r.raw_line for r in recent] == ["line 2", "line 3", "line 4"]
+    # limit >= total devuelve todo; limit <= 0 no devuelve nada.
+    assert len(store.get_recent_observations(10)) == 5
+    assert store.get_recent_observations(0) == []

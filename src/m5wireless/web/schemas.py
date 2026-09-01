@@ -80,6 +80,23 @@ class ChannelDistributionResponse(BaseModel):
     channels: dict[int, int]
 
 
+class ConsoleLine(BaseModel):
+    """Linea del historico para la consola (incluye `raw_line`)."""
+
+    timestamp: datetime
+    firmware: str
+    source: str
+    event_type: str
+    bssid: str | None
+    rssi: int | None
+    client_mac: str | None
+    raw_line: str
+
+
+class ConsoleResponse(BaseModel):
+    lines: list[ConsoleLine]
+
+
 # ---- builders dominio -> esquema ----
 
 
@@ -128,6 +145,19 @@ def network_detail(
     )
 
 
+def console_line(row: ObservationRow) -> ConsoleLine:
+    return ConsoleLine(
+        timestamp=row.timestamp,
+        firmware=row.firmware,
+        source=row.source,
+        event_type=row.event_type,
+        bssid=row.bssid,
+        rssi=row.rssi,
+        client_mac=row.client_mac,
+        raw_line=row.raw_line,
+    )
+
+
 def event_to_json(event: ObservationEvent) -> dict[str, object]:
     """Serializa un `ObservationEvent` como dict plano para SSE.
 
@@ -145,6 +175,7 @@ def event_to_json(event: ObservationEvent) -> dict[str, object]:
             "ssid": event.network.ssid,
             "channel": event.network.channel,
             "rssi": event.network.rssi,
+            "raw_line": event.raw_line,
         }
     if isinstance(event, ClientAssociated):
         return {
@@ -154,5 +185,6 @@ def event_to_json(event: ObservationEvent) -> dict[str, object]:
             "source": event.source,
             "mac": event.client.mac,
             "bssid": event.client.bssid,
+            "raw_line": event.raw_line,
         }
     raise TypeError(f"evento desconocido: {event!r}")

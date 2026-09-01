@@ -29,11 +29,13 @@ from .schemas import (
     ChannelDistributionResponse,
     ClientRead,
     CollectorStats,
+    ConsoleResponse,
     HealthResponse,
     HistoryRow,
     NetworkDetail,
     NetworkListResponse,
     client_read,
+    console_line,
     history_row,
     network_detail,
     network_read,
@@ -211,6 +213,19 @@ def export_json(
     until: datetime | None = Query(None),
 ) -> list[HistoryRow]:
     return [history_row(r) for r in store.iter_observations(since=since, until=until)]
+
+
+# ---- consola ----
+
+
+@router.get("/api/console", response_model=ConsoleResponse)
+def console(
+    store: AbstractStore = Depends(get_store),
+    limit: int = Query(100, ge=1, le=1000, description="ultimas N lineas"),
+) -> ConsoleResponse:
+    """Ultimas N lineas del historico (con `raw_line`), de la mas antigua a la
+    mas reciente. Alimenta el panel de consola serial del dashboard."""
+    return ConsoleResponse(lines=[console_line(r) for r in store.get_recent_observations(limit)])
 
 
 # ---- stats ----

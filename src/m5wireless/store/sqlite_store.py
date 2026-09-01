@@ -200,6 +200,29 @@ class SQLiteStore(AbstractStore):
                 raw_line=r["raw_line"],
             )
 
+    def get_recent_observations(self, limit: int) -> list[ObservationRow]:
+        if limit <= 0:
+            return []
+        cursor = self._conn.execute(
+            "SELECT * FROM observations ORDER BY id DESC LIMIT ?", (limit,)
+        )
+        rows = cursor.fetchall()
+        result: list[ObservationRow] = []
+        for r in reversed(rows):
+            result.append(
+                ObservationRow(
+                    timestamp=_from_iso(r["timestamp"]),
+                    firmware=r["firmware"],
+                    source=r["source"],
+                    event_type=r["event_type"],
+                    bssid=r["bssid"],
+                    rssi=r["rssi"],
+                    client_mac=r["client_mac"],
+                    raw_line=r["raw_line"],
+                )
+            )
+        return result
+
     def get_networks(
         self, *, since: datetime | None = None, until: datetime | None = None
     ) -> list[Network]:

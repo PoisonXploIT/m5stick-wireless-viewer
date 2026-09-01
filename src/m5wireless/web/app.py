@@ -1,4 +1,4 @@
-"""Fabrica de la aplicacion FastAPI (Fase 3).
+"""Fabrica de la aplicacion FastAPI (Fase 3, frontend en Fase 4).
 
 - `create_app(store, collector=...)` es el unico punto de construccion; el
   store se inyecta y NUNCA hay instancia global mutable.
@@ -7,9 +7,8 @@
   cerrar.
 - El hub SSE (`EventHub`) se liga al event loop en el lifespan; si hay
   colector, este publica sus eventos via `hub.publish_sync` (thread-safe).
-
-Decision de Fase 3: `/` devuelve un JSON minimo con los endpoints; el
-dashboard real con SSE llega en Fase 4.
+- Fase 4: `/` sirve `templates/index.html` (dashboard) y `/static` monta
+  `web/static` (CSS/JS vanilla, sin frameworks).
 """
 
 from __future__ import annotations
@@ -17,10 +16,12 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from ..store.base import AbstractStore
 from .api import router as api_router
@@ -30,17 +31,9 @@ from .sse import router as sse_router
 if TYPE_CHECKING:
     from ..worker.collector import Collector
 
-_ENDPOINTS = (
-    "GET /api/health",
-    "GET /api/networks?since&until&min_rssi&channel&ssid&firmware",
-    "GET /api/networks/{bssid}",
-    "GET /api/clients?bssid",
-    "GET /api/clients/{mac}",
-    "GET /api/export/csv?since&until",
-    "GET /api/export/json?since&until",
-    "GET /api/stats/channels",
-    "GET /api/events",
-)
+_WEB_DIR = Path(__file__).parent
+_STATIC_DIR = _WEB_DIR / "static"
+_INDEX_HTML = _WEB_DIR / "templates" / "index.html"
 
 
 def create_app(store: AbstractStore, *, collector: Collector | None = None) -> FastAPI:
@@ -76,8 +69,11 @@ def create_app(store: AbstractStore, *, collector: Collector | None = None) -> F
     app.include_router(api_router)
     app.include_router(sse_router)
 
+    app.mount("/static", StaticFiles(directory=_STATIC_DIR), name="static")
+
     @app.get("/", include_in_schema=False)
-    def root() -> JSONResponse:
-        return JSONResponse({"status": "ok", "phase": 3, "endpoints": _ENDPOINTS})
+    def root() -> FileResponse:
+        """Dashboard (Fase 4): HTML + assets estaticos, sin build step."""
+        return FileResponse(_INDEX_HTML, media_type="text/html")
 
     return app

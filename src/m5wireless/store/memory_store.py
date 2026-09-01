@@ -98,6 +98,12 @@ class MemoryStore(AbstractStore):
                 continue
             yield row
 
+    def get_recent_observations(self, limit: int) -> list[ObservationRow]:
+        if limit <= 0:
+            return []
+        # De la mas antigua a la mas reciente (orden cronologico).
+        return list(self._observations[-limit:])
+
     def get_networks(
         self, *, since: datetime | None = None, until: datetime | None = None
     ) -> list[Network]:
