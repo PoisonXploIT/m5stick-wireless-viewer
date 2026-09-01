@@ -4,7 +4,7 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: Fase 4 completa (commit `87f8097`).
+Última actualización: Fase 5 completa (commit `a418dc5`), v3.0.0 funcional.
 
 ---
 
@@ -13,15 +13,17 @@ tras overflow de contexto, sin necesidad de compactar.
 ```text
 Reanuda el proyecto m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer.
 Lee primero SEGUIMIENTO.md y PLAN.md (en C:/Users/Sammi/m5stick-wireless-viewer-plan/PLAN.md).
-Estado: Fase 4 completa (dashboard HTML/CSS/JS vanilla en web/templates/index.html +
-web/static/, SSE en vivo con reconexion, filtros y ordenacion en cliente; backend FastAPI
-+ SSE de la Fase 3 intacto; 82 tests pasando, ruff y mypy --strict limpios sobre
-src/m5wireless). Venv en .venv (.venv/Scripts/python -m pytest / ruff / mypy).
-Siguiente: vista de detalle de red pospuesta a v3.1 (el plan §Fase 4 la permitia mover)
-y/o Fase 5 del plan (Exporters y CLI: Splunk HEC robusto + CLI unificado; CSV/JSON
-streaming ya existe desde Fase 3). Reglas de proyecto: sin datetime.utcnow (usar utc_now() aware), parsers con fixtures
-reales solo, registro de parsers almacena clases no instancias, ruff+mypy --strict limpios
-en cada commit (mypy sobre src/m5wireless; NO sobre tests/). No uses emojis en salidas.
+Estado: Fase 5 completa, v3.0.0 funcional (commit a418dc5): dashboard + SSE (Fases 3-4),
+exporter Splunk HEC robusto (cola + circuit breaker + spool), CLI unificada m5wireless
+(run/export/snapshot), packaging hatchling con extras [serial]/[web]/[splunk], Dockerfile
++ docker-compose. 103 tests pasando, ruff y mypy --strict limpios sobre src/m5wireless.
+Venv en .venv (.venv/Scripts/python -m pytest / ruff / mypy). Reglas de proyecto: sin
+datetime.utcnow (usar utc_now() aware), parsers con fixtures reales solo, registro de
+parsers almacena clases no instancias, ruff+mypy --strict limpios en cada commit (mypy
+sobre src/m5wireless; NO sobre tests/). No uses emojis en salidas.
+Siguiente (Fase 6-7 del plan): CI/CD, tag v3.0.0, archivar wifi-marauder-viewer con README
+de redireccion, repo remoto (pendiente de Fase 0). v3.1: vista de detalle de red (endpoint
+ya existe), graficas Chart.js, parsers stubs con fixtures reales.
 ```
 
 ---
@@ -35,12 +37,14 @@ en cada commit (mypy sobre src/m5wireless; NO sobre tests/). No uses emojis en s
 | Fase 2 (stores + sources + collector) | **Completa** — commit `09baa37` |
 | Fase 3 (backend web FastAPI + SSE) | **Completa** — commit `3590475` |
 | Fase 4 (frontend dashboard HTML/CSS/JS + SSE) | **Completa** — commit `87f8097` (vista de detalle pospuesta a v3.1) |
-| Fase 5-7 | Pendientes |
+| Fase 5 (exporters + CLI unificada) | **Completa** — commit `a418dc5` |
+| Fase 6 (calidad/empaquetado: CI/CD) | Parcial: pyproject/Docker listos; falta CI y releases automaticas |
+| Fase 7 (release v3.0.0 + deprecacion) | Pendiente: tag, archivar repo legado, repo remoto |
 
-Tests: 82 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+Tests: 103 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
 Cobertura web/: 97% (criterio minimo 80%).
-Venv: `.venv/` (pytest, ruff, mypy; paquete instalado editable; extras serial + types-pyserial;
-fastapi/uvicorn en extra [web] e httpx en dev para TestClient).
+Venv: `.venv/` (paquete instalado editable v3.0.0 con entry point `m5wireless`; extras
+serial/web/splunk + types-pyserial; fastapi/uvicorn/httpx instalados).
 
 ---
 
@@ -67,6 +71,12 @@ fastapi/uvicorn en extra [web] e httpx en dev para TestClient).
 19. **Store: metodos aditivos de Fase 3** — `get_network(bssid)`, `get_client(mac)` y `iter_observations(since, until)` (Iterator, para export CSV sin cargar todo en memoria). Sin cambios en la API existente de Fase 2.
 20. **Collector: `observe(callback)` + property `source_type`** — el callback se invoca tras cada `apply` exitoso desde el hilo que procesa la linea; un fallo del observador NO para la pipeline (se cuenta en stats.errors y se loguea).
 21. **`/` devuelve JSON minimo** `{"status": "ok", "phase": 3, "endpoints": [...]}`; `web/templates/index.html` es placeholder hasta Fase 4 (dashboard real con SSE).
+22. **CLI = argparse, no typer**: cero dependencias nuevas para el core; subparsers `run` / `export csv|json` / `snapshot`. Entry point `m5wireless = "m5wireless.cli:main"` en pyproject.
+23. **Splunk HEC se activa solo con URL y token** (`M5W_SPLUNK_HEC_URL` + `M5W_SPLUNK_HEC_TOKEN`, o `[splunk]` en toml): no es accion manual; el colector lo dispara via `Collector.observe(exporter.submit)`. `observe()` ahora admite VARIOS observadores (aditivo; antes era uno solo).
+24. **HEC: fallos contados, no reenviados**: un evento cuyo POST falla se cuenta en `stats.failed` y no se reintenta (documentado); lo que SI se conserva sin perder es la cola pendiente durante caídas. Desborde de cola: spool JSONL a disco si hay `spool_path`, si no, drop contado.
+25. **Version 3.0.0 + requires-python >=3.11** (tomllib para el toml de config). Consecuencia: ruff target py311 activo UP017/UP035 -> fixes mecanicos en ficheros antiguos (datetime.UTC, collections.abc.Callable).
+26. **`m5wireless snapshot` = legacy `auto_save_html.py`**: polling con stdlib urllib (sin httpx), guarda HTML con timestamp; `--max N` para pruebas.
+27. **Ciclo de vida del exporter en el lifespan** de `create_app(..., exporter=...)`: start/stop junto al collector; el cliente httpx se crea/cierra dentro (o se inyecta en tests).
 
 ---
 
@@ -75,9 +85,15 @@ fastapi/uvicorn en extra [web] e httpx en dev para TestClient).
 ```text
 m5stick-wireless-viewer/
 ├── .gitattributes, .gitignore, AUTHORS.md, README.md, SEGUIMIENTO.md
-├── pyproject.toml          # hatchling, requires-python >=3.10, extra [dev]: pytest/ruff/mypy
+├── Dockerfile              # python:3.11-slim, modo file por defecto (Fase 5)
+├── docker-compose.yml      # m5wireless + splunk opcional (profile "splunk")
+├── pyproject.toml          # hatchling v3.0.0, >=3.11, scripts m5wireless, extras serial/web/splunk/dev
 ├── src/m5wireless/
-│   ├── __init__.py         # __version__ = "3.0.0a1"
+│   ├── __init__.py         # __version__ = "3.0.0"
+│   ├── cli.py              # CLI unificada: run / export csv|json / snapshot (argparse)
+│   ├── exporter/
+│   │   ├── __init__.py     # importable sin httpx
+│   │   └── splunk_hec.py   # SplunkHecConfig + SplunkHecExporter (cola, breaker, spool)
 │   ├── models.py           # Network, Client, Observation, NetworkSeen, ClientAssociated, normalize_mac, utc_now
 │   ├── parser/
 │       ├── __init__.py     # importa marauder + evil_m5project (dispara registro)
@@ -100,10 +116,10 @@ m5stick-wireless-viewer/
 │   │   ├── api.py          # endpoints REST; get_store() como dependencia FastAPI
 │   │   ├── sse.py          # EventHub (pub-sub thread-safe) + GET /api/events
 │   │   ├── schemas.py      # Pydantic: NetworkRead/ClientRead/HistoryRow/Health... + event_to_json
-│   │   ├── static/         # .gitkeep (Fase 4)
-│   │   └── templates/index.html  # placeholder (Fase 4)
+│   │   ├── static/         # css/js del dashboard (Fase 4)
+│   │   └── templates/index.html  # dashboard (Fase 4)
 │   └── worker/
-│       └── collector.py    # source -> parser -> store, stats, reloj inyectable, observe()
+│       └── collector.py    # source -> parser -> store, stats, reloj inyectable, observe() (multi)
 └── tests/
     ├── conftest.py         # FIXTURES path, NOW = 2026-01-15T10:00:00Z (determinista)
     ├── fixtures/           # marauder_scan.log, evil_m5project_scan.log, malformed_lines.log
@@ -112,7 +128,11 @@ m5stick-wireless-viewer/
     ├── test_serial_source.py # SerialSource con transporte falso (sin hardware)
     ├── test_integration.py   # end-to-end source -> parser -> store
     ├── test_api.py           # API REST con TestClient + MemoryStore (fixture seeded_store)
-    └── test_sse.py           # SSE con app ASGI a mano + hub unitario + wiring collector
+    ├── test_sse.py           # SSE con app ASGI a mano + hub unitario + wiring collector
+    ├── test_web_ui.py        # dashboard HTML/assets + /api/console (Fase 4)
+    ├── test_splunk_hec.py    # HEC: auth/sourcetype, breaker, spool, thread-safe (Fase 5)
+    ├── test_cli.py           # CLI: version, export offline, snapshot, config precedence (Fase 5)
+    └── test_packaging.py     # metadata/entry point v3.0.0 (Fase 5)
 ```
 
 ---
@@ -226,6 +246,34 @@ y graficas Chart.js opcionales. Alternativamente, Fase 5 del plan (Exporters y C
 Splunk HEC robusto + CLI unificado (CSV/JSON streaming ya esta en web/api.py).
 Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
 emojis, smoke test de navegador con CDP para cualquier cambio de frontend.
+```
+
+### Fase 5 — commit `a418dc5` (Fase 5 completa, v3.0.0 funcional)
+
+Cambios:
+- `exporter/splunk_hec.py`: `SplunkHecConfig` + `SplunkHecExporter` con httpx async; `verify=True` por defecto (False solo via config explicita); envio por lotes (`batch_size`); cola en memoria thread-safe (`submit()` callable desde el hilo del colector) con spool JSONL a disco en desborde (`max_queue_size`/`spool_path`, se recarga al arrancar) y drop contado si no hay spool; circuit breaker (N fallos consecutivos -> pausa T s, cola intacta); `event_to_payload()` plano por evento. Ciclo de vida: `start()`/`stop(drain_timeout)` con drenado best-effort.
+- `worker/collector.py`: `observe()` ahora admite VARIOS observadores (aditivo; el hub SSE y el exporter HEC conviven).
+- `web/app.py`: `create_app(..., exporter=...)` opcional: lifespan arranca/detiene el exporter y cablea `collector.observe(exporter.submit)`. Version 3.0.0 en la app FastAPI.
+- `cli.py` (CLI unificada, argparse, cero deps nuevas): `m5wireless run` (serial|file + web; store memoria o SQLite con `--db-path`; Splunk HEC auto si hay URL+token), `export csv|json` (offline, mismo esquema de columnas que `/api/export/*`), `snapshot` (legacy auto_save_html: polling urllib a la URL, guarda HTML con timestamp, `--max N`). Config: CLI > env `M5W_*` > `m5wireless.toml` (./ o ~/.config/m5wireless/; secciones [run]/[splunk]).
+- `pyproject.toml`: version 3.0.0, requires-python >=3.11 (tomllib), `[project.scripts] m5wireless = "m5wireless.cli:main"`, extras `[serial]`/`[web]`/`[splunk]`(httpx)/`[dev]`(+uvicorn). hatchling empaqueta static/templates sin cambios.
+- `Dockerfile` (python:3.11-slim, instala `. [serial,web,splunk]`, CMD modo file con `/data/scan.log`) y `docker-compose.yml` (m5wireless + splunk opcional en profile `splunk`).
+- Tests: `test_splunk_hec.py` (9), `test_cli.py` (7), `test_packaging.py` (3). Fixes mecanicos ruff py311 (UP017/UP035) en ficheros antiguos + `fromisoformat` sin replace Z en test_api.
+
+Validacion: 103 tests, ruff limpio, mypy --strict limpio (28 ficheros). Instalacion limpia no-editable en venv temporal con `. [serial,web,splunk]`: `m5wireless --version` -> 3.0.0; `run --source file` sirve `/` (HTML dashboard) + static + API desde el wheel; `export csv` offline correcto.
+
+Decisiones: argparse (no typer) para no engordar el core; HEC activado solo con URL+token config y disparado por el colector (no manual); eventos con fallo POST se cuentan y NO se reenvian (la cola pendiente si se conserva); snapshot = subcomando legacy.
+
+Mini prompt para retomar DESPUÉS de esta fase:
+
+```text
+Continúa m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer
+(Fase 5 hecha, commit a418dc5; v3.0.0 funcional; 103 tests, ruff + mypy --strict
+limpios sobre src). Lee SEGUIMIENTO.md y PLAN.md. Pendiente: Fase 6/7 del plan —
+CI (lint+test+typecheck), tag v3.0.0, archivar wifi-marauder-viewer con README de
+redireccion, repo remoto (Fase 0 pendiente del usuario). v3.1: vista de detalle de
+red (GET /api/networks/{bssid} ya existe) + graficas Chart.js + parsers stubs con
+fixtures reales. Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits
+en espanol sin emojis, smoke test de navegador con CDP para cambios de frontend.
 ```
 
 ---
