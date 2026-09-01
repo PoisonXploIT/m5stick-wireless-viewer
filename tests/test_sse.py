@@ -14,7 +14,7 @@ import json
 import threading
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -33,7 +33,7 @@ from m5wireless.web.sse import EventHub
 from m5wireless.worker import Collector
 
 # Mismo instante de referencia que tests/conftest.py (determinista).
-NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
 
 
 def _network_event() -> NetworkSeen:

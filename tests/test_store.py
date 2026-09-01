@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
 from m5wireless.models import Client, ClientAssociated, Network, NetworkSeen
 from m5wireless.store import AbstractStore, MemoryStore, SQLiteStore
 
-NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
 LATER = NOW + timedelta(seconds=30)
 OLD = NOW - timedelta(days=40)
 

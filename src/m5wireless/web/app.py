@@ -29,6 +29,7 @@ from .sse import EventHub
 from .sse import router as sse_router
 
 if TYPE_CHECKING:
+    from ..exporter.splunk_hec import SplunkHecExporter
     from ..worker.collector import Collector
 
 _WEB_DIR = Path(__file__).parent
@@ -36,16 +37,32 @@ _STATIC_DIR = _WEB_DIR / "static"
 _INDEX_HTML = _WEB_DIR / "templates" / "index.html"
 
 
-def create_app(store: AbstractStore, *, collector: Collector | None = None) -> FastAPI:
-    """Construye la app. `collector` es opcional: sin el, solo lectura/export."""
+def create_app(
+    store: AbstractStore,
+    *,
+    collector: Collector | None = None,
+    exporter: SplunkHecExporter | None = None,
+) -> FastAPI:
+    """Construye la app.
+
+    - `collector` es opcional: sin el, solo lectura/export.
+    - `exporter` (Splunk HEC) es opcional: si se pasa, su ciclo de vida corre
+      en el lifespan y el colector le reenvia cada evento via `submit`.
+    """
     hub = EventHub()
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         hub.bind_loop(asyncio.get_running_loop())
+        exporter_started = False
+        if exporter is not None:
+            await exporter.start()
+            exporter_started = True
         task: asyncio.Task[None] | None = None
         if collector is not None:
             collector.observe(hub.publish_sync)
+            if exporter is not None:
+                collector.observe(exporter.submit)
             task = asyncio.create_task(collector.run())
         try:
             yield
@@ -61,8 +78,10 @@ def create_app(store: AbstractStore, *, collector: Collector | None = None) -> F
                         await task
                     except asyncio.CancelledError:
                         pass
+            if exporter is not None and exporter_started:
+                await exporter.stop()
 
-    app = FastAPI(title="m5wireless", version="3.0.0a1", lifespan=lifespan)
+    app = FastAPI(title="m5wireless", version="3.0.0", lifespan=lifespan)
     app.state.store = store
     app.state.hub = hub
     app.state.collector = collector

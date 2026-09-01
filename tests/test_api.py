@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import io
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -17,12 +17,12 @@ from m5wireless.web import create_app
 from m5wireless.web.api import get_store
 
 # Mismo instante de referencia que tests/conftest.py (determinista).
-NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
 
 
 def _ts(value: str) -> datetime:
     """Parsea un timestamp de la respuesta (pydantic emite UTC con sufijo Z)."""
-    return datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return datetime.fromisoformat(value)  # Python >=3.11 entiende el sufijo Z.
 
 
 @pytest.fixture

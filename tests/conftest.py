@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
@@ -13,7 +13,7 @@ from m5wireless.store import MemoryStore
 FIXTURES = Path(__file__).parent / "fixtures"
 
 # Instante de referencia para todos los tests (determinista).
-NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
 
 
 @pytest.fixture

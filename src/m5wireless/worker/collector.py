@@ -44,20 +44,21 @@ class Collector:
         self._source_type = source_type
         self._clock = clock if clock is not None else utc_now
         self._stats = {"lines": 0, "events": 0, "errors": 0}
-        self._observer: Callable[[ObservationEvent], None] | None = None
+        self._observers: list[Callable[[ObservationEvent], None]] = []
 
     @property
     def source_type(self) -> SourceType:
         return self._source_type
 
     def observe(self, callback: Callable[[ObservationEvent], None]) -> None:
-        """Registra un observador de eventos en vivo (p. ej. el hub SSE).
+        """Registra un observador de eventos en vivo (p. ej. el hub SSE o el
+        exporter Splunk HEC).
 
         Se invoca tras cada `store.apply` exitoso, desde el hilo que procesa
         la linea (puede ser el hilo lector serial): el callback debe ser
-        thread-safe.
+        thread-safe. Admite varios observadores; se invocan en orden.
         """
-        self._observer = callback
+        self._observers.append(callback)
 
     async def run(self) -> None:
         """Arranca la fuente y procesa lineas hasta que termine o se pare."""
@@ -87,9 +88,9 @@ class Collector:
             logger.exception("error aplicando evento al store")
             return
         self._stats["events"] += 1
-        if self._observer is not None:
+        for observer in self._observers:
             try:
-                self._observer(event)
+                observer(event)
             except Exception:  # un fallo del observador no para la pipeline.
                 self._stats["errors"] += 1
                 logger.exception("error en el observador de eventos")

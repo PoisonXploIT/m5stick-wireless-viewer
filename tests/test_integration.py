@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from m5wireless.models import SourceType
@@ -12,7 +12,7 @@ from m5wireless.source import FileSource
 from m5wireless.store import AbstractStore, MemoryStore
 from m5wireless.worker import Collector
 
-NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
 
 
 def _run_file(

@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Literal
 
 SourceType = Literal["serial", "file"]
@@ -21,7 +21,7 @@ SourceType = Literal["serial", "file"]
 
 def utc_now() -> datetime:
     """Instante actual en UTC, aware."""
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 _MAC_RE = re.compile(r"^(?:[0-9a-f]{2}:){5}[0-9a-f]{2}$")
