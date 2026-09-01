@@ -19,6 +19,21 @@ def marauder_log() -> str:
 
 
 @pytest.fixture
+def marauder_log_path() -> Path:
+    return FIXTURES / "marauder_scan.log"
+
+
+@pytest.fixture
+def evil_m5project_log_path() -> Path:
+    return FIXTURES / "evil_m5project_scan.log"
+
+
+@pytest.fixture
+def malformed_log_path() -> Path:
+    return FIXTURES / "malformed_lines.log"
+
+
+@pytest.fixture
 def evil_m5project_log() -> str:
     return (FIXTURES / "evil_m5project_scan.log").read_text(encoding="utf-8")
 

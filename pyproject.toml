@@ -13,7 +13,10 @@ authors = [{ name = "PoisonXploIT" }]
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10"]
+# pyserial es opcional: solo lo necesita la fuente serial en vivo (host nativo).
+# El paquete se importa y funciona sin el (FileSource, stores, parsers, API...).
+serial = ["pyserial>=3"]
+dev = ["pytest>=8", "ruff>=0.5", "mypy>=1.10", "pyserial>=3", "types-pyserial"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/m5wireless"]
