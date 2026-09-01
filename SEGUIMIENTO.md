@@ -286,7 +286,13 @@ Cambios:
 - `pyproject.toml`: `pytest-cov>=5` en extra `[dev]` (lo usa CI).
 - `docs/legacy-wifi-marauder-viewer-README.md`: borrador del aviso de fusion para el README de wifi-marauder-viewer antes de archivarlo.
 
-Pendiente (acciones remotas, requieren confirmacion): repo remoto (renombrar Visualizacion_extendida_M5StickPlus2 -> m5stick-wireless-viewer), `git remote add` + push, tag v3.0.0, archivar wifi-marauder-viewer, PyPI (crear proyecto + trusted publisher).
+Cierre de Fase 6/7 (ejecutado):
+- Repo renombrado a `PoisonXploIT/m5stick-wireless-viewer`; historia vieja de Visualizacion_extendida conservada en la rama `legacy-visualizacion-v2` (+ tag `version2`) antes del force-push de `main`.
+- `main` empujado, CI verde (3.11/3.12).
+- PyPI: cuenta con 2FA, trusted publisher PENDIENTE registrado (GitHub, repo m5stick-wireless-viewer, workflow `release.yml`, sin entorno); variable de repo `PUBLISH_TO_PYPI=true`.
+- Tag `v3.0.0` empujado: GitHub Release con wheel + sdist y publicacion en PyPI via OIDC (job `pypi` success).
+- `wifi-marauder-viewer`: aviso de fusion en README (borrador en `docs/legacy-wifi-marauder-viewer-README.md`) y repo archivado.
+- Nota: el pending publisher NO reserva el nombre; si el primer upload no hubiera creado el proyecto, otro usuario podia tomarlo. Se resolvio creando el proyecto mediante el propio tag v3.0.0.
 
 ---
 
