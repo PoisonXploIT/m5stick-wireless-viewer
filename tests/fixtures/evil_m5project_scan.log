@@ -1,0 +1,8 @@
+[SESSION START] 2026-01-15T10:00:00 | COM3 @ 115200
+M5Stick Plus 2 - Evil-M5Project monitor
+[10:00:01] Movistar_1A2B (AA:BB:CC:DD:EE:01) on channel 6 has 2 clients:
+[10:00:01] - FF:EE:DD:CC:BB:AA
+[10:00:01] - 00:11:22:33:44:55
+[10:00:05] GuestNet-5G (DE:AD:BE:EF:00:99) on channel 11 has 0 clients:
+[10:00:06] - FF:EE:DD:CC:BB:AA
+[SESSION END] 2026-01-15T10:05:00 | 8 lineas capturadas
