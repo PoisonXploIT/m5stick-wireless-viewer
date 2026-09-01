@@ -4,7 +4,7 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: Fase 3 completa (commit `3590475`).
+Última actualización: Fase 4 completa (commit `87f8097`).
 
 ---
 
@@ -13,13 +13,13 @@ tras overflow de contexto, sin necesidad de compactar.
 ```text
 Reanuda el proyecto m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer.
 Lee primero SEGUIMIENTO.md y PLAN.md (en C:/Users/Sammi/m5stick-wireless-viewer-plan/PLAN.md).
-Estado: Fase 3 completa (backend web FastAPI + SSE: create_app() con lifespan que
-arranca/detiene el Collector, API REST en web/api.py, EventHub thread-safe en web/sse.py,
-esquemas Pydantic en web/schemas.py; store inyectado por dependencias; 75 tests pasando,
-ruff y mypy --strict limpios sobre src/m5wireless). Venv en .venv
-(.venv/Scripts/python -m pytest / ruff / mypy). Siguiente: Fase 4 del plan (Frontend:
-index.html con SSE, tabla de redes + filtros + graficas, vista de detalle de red).
-Reglas de proyecto: sin datetime.utcnow (usar utc_now() aware), parsers con fixtures
+Estado: Fase 4 completa (dashboard HTML/CSS/JS vanilla en web/templates/index.html +
+web/static/, SSE en vivo con reconexion, filtros y ordenacion en cliente; backend FastAPI
++ SSE de la Fase 3 intacto; 82 tests pasando, ruff y mypy --strict limpios sobre
+src/m5wireless). Venv en .venv (.venv/Scripts/python -m pytest / ruff / mypy).
+Siguiente: vista de detalle de red pospuesta a v3.1 (el plan §Fase 4 la permitia mover)
+y/o Fase 5 del plan (Exporters y CLI: Splunk HEC robusto + CLI unificado; CSV/JSON
+streaming ya existe desde Fase 3). Reglas de proyecto: sin datetime.utcnow (usar utc_now() aware), parsers con fixtures
 reales solo, registro de parsers almacena clases no instancias, ruff+mypy --strict limpios
 en cada commit (mypy sobre src/m5wireless; NO sobre tests/). No uses emojis en salidas.
 ```
@@ -34,9 +34,10 @@ en cada commit (mypy sobre src/m5wireless; NO sobre tests/). No uses emojis en s
 | Fase 1 (modelos + parsers) | **Completa** — commit `61e1d20` |
 | Fase 2 (stores + sources + collector) | **Completa** — commit `09baa37` |
 | Fase 3 (backend web FastAPI + SSE) | **Completa** — commit `3590475` |
-| Fase 4-7 | Pendientes |
+| Fase 4 (frontend dashboard HTML/CSS/JS + SSE) | **Completa** — commit `87f8097` (vista de detalle pospuesta a v3.1) |
+| Fase 5-7 | Pendientes |
 
-Tests: 75 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+Tests: 82 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
 Cobertura web/: 97% (criterio minimo 80%).
 Venv: `.venv/` (pytest, ruff, mypy; paquete instalado editable; extras serial + types-pyserial;
 fastapi/uvicorn en extra [web] e httpx en dev para TestClient).
@@ -183,6 +184,48 @@ web/templates/index.html que consuma GET /api/events (SSE) y los endpoints REST
 tabla de redes en vivo, filtros, graficas de distribucion por canal y vista de
 detalle de red. Servir static/templates desde FastAPI (app.py). Mantén ruff +
 mypy --strict limpios sobre src/m5wireless y los tests existentes pasando.
+```
+
+### Fase 4 — commit `87f8097` (Fase 4 completa)
+
+Cambios:
+- `web/templates/index.html`: dashboard con contadores (redes/clientes/fuente), tabla de redes (SSID, BSSID, canal, RSSI, clientes, ultima vista), panel de consola serial, distribucion por canal y enlaces a export CSV/JSON.
+- `web/static/js/dashboard.js` (vanilla JS, sin frameworks): EventSource a `/api/events` con reconexion controlada (close explicito + timer de 3 s, indicador de estado); carga inicial via `/api/networks`, `/api/clients`, `/api/console?limit=200` y `/api/health`; actualizacion incremental (parchea solo la fila afectada; render completo solo para red nueva que pasa el filtro o cambio de filtro/ordenacion); filtros en cliente (texto SSID/BSSID, canal, RSSI minimo); ordenacion por columna (nulls siempre al final; default desc para RSSI y ultima vista); coloracion RSSI (>= -60 verde, -80..-60 naranja, < -80 rojo); consola con tope de 500 lineas y scroll automatico si el usuario esta cerca del fondo.
+- `web/static/css/style.css`: tema oscuro, mobile-first; grid apilado en movil (< 768px) y dos columnas en escritorio; sin frameworks CSS.
+- `app.py`: `/` sirve `templates/index.html` (adios al JSON placeholder de Fase 3); `/static` monta `web/static` con StaticFiles. Sin nuevas dependencias.
+- `api.py`: nuevo `GET /api/console?limit` (1..1000, default 100) — ultimas N lineas del historico con `raw_line`, en orden cronologico. Alimenta el panel de consola.
+- `schemas.py`: `ConsoleLine`/`ConsoleResponse` + `console_line()`. **Aditivo**: `event_to_json()` incluye ahora `raw_line` (los frames SSE llevan la linea raw y la consola se actualiza en vivo).
+- Store: `get_recent_observations(limit)` en AbstractStore, MemoryStore y SQLiteStore (orden cronologico, de la mas antigua a la mas reciente; limit <= 0 -> vacio).
+- Tests: `test_web_ui.py` (6 tests: `/` sirve el dashboard HTML, assets estaticos con content-type correcto, `/api/console` con limit/422) + `test_store.py` parametrizado para `get_recent_observations`; `test_api.test_root` actualizado a esperar HTML.
+
+Decisiones (segun recomendaciones del prompt de Fase 4):
+- Sin Chart.js en v3.0: la distribucion por canal es una lista con barras CSS; graficas de evolucion de RSSI y vista de detalle de red van a v3.1.
+- Filtros en cliente sobre el estado ya cargado (rapidisimo, sin peticiones); consultas historicas via `/api/networks?since=...`.
+- Actualizacion incremental de la tabla, no render total por evento.
+
+Validacion en navegador real (CDP/Chrome): carga inicial, filtros de texto/canal/RSSI,
+ordenacion asc/desc, y eventos SSE en vivo con parche incremental + insercion de red nueva.
+El smoke test en navegador encontro 3 bugs que los tests unitarios no cubrian:
+(1) `/api/clients` no se cargaba en init (contador de clientes a 0 hasta el primer evento
+SSE), (2) `NetworkRead` trae `last_seen`, no `timestamp`, asi que la carga inicial dejaba
+`last_seen` undefined y la ordenacion por ultima vista caia al tie-break por BSSID,
+(3) una red nueva no creaba fila (solo se parchaban las existentes). Leccion: el frontend
+siempre necesita un pase de navegador, no solo tests del backend.
+
+Estado final: 82 tests pasando, ruff limpio, mypy --strict limpio (25 ficheros),
+cobertura web/ 97%.
+
+Mini prompt para retomar DESPUÉS de esta fase:
+
+```text
+Continúa m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer
+(Fase 4 hecha, commit 87f8097; 82 tests, ruff + mypy --strict limpios sobre src).
+Lee SEGUIMIENTO.md y PLAN.md. Pendiente de la Fase 4 pospuesto a v3.1: vista de
+detalle de red (GET /api/networks/{bssid} ya existe: estado + clientes + historico)
+y graficas Chart.js opcionales. Alternativamente, Fase 5 del plan (Exporters y CLI):
+Splunk HEC robusto + CLI unificado (CSV/JSON streaming ya esta en web/api.py).
+Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
+emojis, smoke test de navegador con CDP para cualquier cambio de frontend.
 ```
 
 ---
