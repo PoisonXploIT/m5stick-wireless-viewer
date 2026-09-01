@@ -294,6 +294,25 @@ Cierre de Fase 6/7 (ejecutado):
 - `wifi-marauder-viewer`: aviso de fusion en README (borrador en `docs/legacy-wifi-marauder-viewer-README.md`) y repo archivado.
 - Nota: el pending publisher NO reserva el nombre; si el primer upload no hubiera creado el proyecto, otro usuario podia tomarlo. Se resolvio creando el proyecto mediante el propio tag v3.0.0.
 
+### Estado actual (kickoff v3.1)
+
+- Demo en localhost: `m5wireless run --source file --log-path data/demo_scan.log` (modo file = tail -f; para ver redes en vivo hay que appendear lineas al log, p. ej. las "Found network" del fixture marauder).
+- Nota de continuidad tambien en el vault: `PROYECTOS/m5wireless/m5wireless - estado y kickoff v3.1.md`.
+- Orden v3.1: (1) vista de detalle de red (endpoint `GET /api/networks/{bssid}` ya existe; falta pagina HTML + link desde la tabla), (2) Chart.js con evolucion RSSI/actividad, (3) parsers stubs SOLO con fixtures reales.
+
+Mini prompt para retomar:
+
+```text
+Continúa m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer
+(rama main; v3.0.0 publicada en GitHub y PyPI; 103 tests, ruff + mypy --strict limpios).
+Lee SEGUIMIENTO.md (repo) y PLAN.md (C:\Users\Sammi\m5stick-wireless-viewer-plan).
+Objetivo: v3.1 — (1) vista de detalle de red: GET /api/networks/{bssid} ya existe, falta pagina
+HTML + link desde la tabla de index.html; (2) Chart.js con evolucion RSSI/actividad temporal;
+(3) parsers stubs WiFi Duck / Hash Monster / PacketMonitor SOLO con fixtures reales.
+Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin emojis,
+smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualizado al cerrar.
+```
+
 ---
 
 ## Pendientes / riesgos abiertos
