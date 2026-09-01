@@ -8,3 +8,5 @@ build/
 .ruff_cache/
 m5wireless.db
 logs/
+.coverage
+htmlcov/

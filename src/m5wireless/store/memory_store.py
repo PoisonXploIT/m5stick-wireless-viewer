@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 
 from ..models import Client, Network, ObservationEvent, utc_now
@@ -57,6 +58,46 @@ class MemoryStore(AbstractStore):
         self._observations.append(event_to_observation_row(event))
 
     # ---- consulta ----
+    def get_network(self, bssid: str) -> Network | None:
+        net = self._networks.get(bssid)
+        if net is None:
+            return None
+        clients = {c.mac for c in self._clients.values() if c.bssid == net.bssid}
+        return Network(
+            bssid=net.bssid,
+            ssid=net.ssid,
+            channel=net.channel,
+            rssi=net.rssi,
+            n_clients=len(clients),
+            clients=clients,
+            first_seen=net.first_seen,
+            last_seen=net.last_seen,
+        )
+
+    def get_client(self, mac: str) -> Client | None:
+        client = self._clients.get(mac)
+        if client is None:
+            return None
+        return Client(
+            mac=client.mac,
+            bssid=client.bssid,
+            first_seen=client.first_seen,
+            last_seen=client.last_seen,
+        )
+
+    def iter_observations(
+        self,
+        *,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> Iterator[ObservationRow]:
+        for row in self._observations:
+            if since is not None and row.timestamp < since:
+                continue
+            if until is not None and row.timestamp > until:
+                continue
+            yield row
+
     def get_networks(
         self, *, since: datetime | None = None, until: datetime | None = None
     ) -> list[Network]:

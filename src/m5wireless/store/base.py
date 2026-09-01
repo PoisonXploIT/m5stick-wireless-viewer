@@ -20,6 +20,7 @@ sistema, lo que mantiene los tests deterministas.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Iterator
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -88,6 +89,20 @@ class AbstractStore(ABC):
     def record_observation(self, event: ObservationEvent) -> None: ...
 
     # ---- consulta ----
+    @abstractmethod
+    def get_network(self, bssid: str) -> Network | None: ...
+
+    @abstractmethod
+    def get_client(self, mac: str) -> Client | None: ...
+
+    @abstractmethod
+    def iter_observations(
+        self,
+        *,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> Iterator[ObservationRow]: ...
+
     @abstractmethod
     def get_networks(
         self, *, since: datetime | None = None, until: datetime | None = None

@@ -22,6 +22,7 @@ formato, el orden lexicografico coincide con el cronologico.
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Iterator
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -138,6 +139,67 @@ class SQLiteStore(AbstractStore):
         self._conn.commit()
 
     # ---- consulta ----
+    def get_network(self, bssid: str) -> Network | None:
+        cursor = self._conn.execute("SELECT * FROM networks WHERE bssid = ?", (bssid,))
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        clients_cursor = self._conn.execute(
+            "SELECT mac FROM clients WHERE bssid = ?", (bssid,)
+        )
+        clients = {r["mac"] for r in clients_cursor.fetchall()}
+        return Network(
+            bssid=row["bssid"],
+            ssid=row["ssid"],
+            channel=row["channel"],
+            rssi=row["rssi"],
+            n_clients=len(clients),
+            clients=clients,
+            first_seen=_from_iso(row["first_seen"]),
+            last_seen=_from_iso(row["last_seen"]),
+        )
+
+    def get_client(self, mac: str) -> Client | None:
+        cursor = self._conn.execute("SELECT * FROM clients WHERE mac = ?", (mac,))
+        row = cursor.fetchone()
+        if row is None:
+            return None
+        return Client(
+            mac=row["mac"],
+            bssid=row["bssid"],
+            first_seen=_from_iso(row["first_seen"]),
+            last_seen=_from_iso(row["last_seen"]),
+        )
+
+    def iter_observations(
+        self,
+        *,
+        since: datetime | None = None,
+        until: datetime | None = None,
+    ) -> Iterator[ObservationRow]:
+        clauses = ["1=1"]
+        params: list[str] = []
+        if since is not None:
+            clauses.append("timestamp >= ?")
+            params.append(_iso(since))
+        if until is not None:
+            clauses.append("timestamp <= ?")
+            params.append(_iso(until))
+        cursor = self._conn.execute(
+            f"SELECT * FROM observations WHERE {' AND '.join(clauses)} ORDER BY id", params
+        )
+        for r in cursor:
+            yield ObservationRow(
+                timestamp=_from_iso(r["timestamp"]),
+                firmware=r["firmware"],
+                source=r["source"],
+                event_type=r["event_type"],
+                bssid=r["bssid"],
+                rssi=r["rssi"],
+                client_mac=r["client_mac"],
+                raw_line=r["raw_line"],
+            )
+
     def get_networks(
         self, *, since: datetime | None = None, until: datetime | None = None
     ) -> list[Network]:
