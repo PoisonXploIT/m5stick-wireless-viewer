@@ -13,6 +13,8 @@ m5wireless.db
 /data/
 # Demo empaquetado en el paquete: SI va al git
 !src/m5wireless/data/demo_scan.log
+# Fixtures de log para tests (sin datos reales): SI van al git
+!tests/fixtures/*.log
 snapshots/
 logs/
 .coverage

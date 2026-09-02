@@ -197,6 +197,7 @@ class TestCompositeAndRegistry:
         assert {cls().firmware_id for cls in registry.all_factories()} == {
             "marauder",
             "evil_m5project",
+            "bruce",
         }
 
 

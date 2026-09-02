@@ -35,7 +35,7 @@ from typing import Any
 
 import httpx
 
-from ..models import ObservationEvent
+from ..models import ObservationEvent, StatusEvent
 from ..store.base import event_to_observation_row
 
 logger = logging.getLogger(__name__)
@@ -112,7 +112,13 @@ class SplunkHecExporter:
         return {**self._stats, "queued": self.queue_size()}
 
     def submit(self, event: ObservationEvent) -> None:
-        """Encola un evento. Thread-safe y nunca bloquea ni lanza."""
+        """Encola un evento. Thread-safe y nunca bloquea ni lanza.
+
+        Los `StatusEvent` no se envian: Splunk HEC consume observaciones de
+        red/clientes, no el ciclo de vida del firmware.
+        """
+        if isinstance(event, StatusEvent):
+            return
         payload = event_to_payload(event)
         with self._lock:
             if len(self._queue) >= self._config.max_queue_size:

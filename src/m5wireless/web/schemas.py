@@ -12,7 +12,14 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
-from ..models import Client, ClientAssociated, Network, NetworkSeen, ObservationEvent
+from ..models import (
+    Client,
+    ClientAssociated,
+    Network,
+    NetworkSeen,
+    ObservationEvent,
+    StatusEvent,
+)
 from ..store.base import ObservationRow
 
 
@@ -180,6 +187,7 @@ def event_to_json(event: ObservationEvent) -> dict[str, object]:
     Union discriminada por el campo `event`:
     - 'network_seen'       -> datos de la red
     - 'client_associated' -> datos del cliente
+    - 'status'             -> ciclo de vida del firmware (p. ej. consola Bruce)
     """
     if isinstance(event, NetworkSeen):
         return {
@@ -201,6 +209,15 @@ def event_to_json(event: ObservationEvent) -> dict[str, object]:
             "source": event.source,
             "mac": event.client.mac,
             "bssid": event.client.bssid,
+            "raw_line": event.raw_line,
+        }
+    if isinstance(event, StatusEvent):
+        return {
+            "event": "status",
+            "timestamp": event.timestamp.isoformat(),
+            "firmware": event.firmware,
+            "source": event.source,
+            "message": event.message,
             "raw_line": event.raw_line,
         }
     raise TypeError(f"evento desconocido: {event!r}")

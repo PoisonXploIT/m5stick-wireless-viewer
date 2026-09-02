@@ -71,7 +71,8 @@ class Network:
 class Observation:
     """Evento base emitido por un parser tras leer una linea.
 
-    Los eventos concretos son `NetworkSeen` y `ClientAssociated`.
+    Los eventos concretos son `NetworkSeen`, `ClientAssociated` y
+    `StatusEvent` (ciclo de vida del firmware, sin persistencia).
     """
 
     timestamp: datetime
@@ -94,5 +95,17 @@ class ClientAssociated(Observation):
     client: Client
 
 
+@dataclass(slots=True, frozen=True)
+class StatusEvent(Observation):
+    """Evento de estado/ciclo de vida del firmware (no es una observacion).
+
+    Ejemplo: consola Bruce (`Selected: Sniffer`, `Sniffer started!`, errores
+    de montaje SD). NO se persiste en el historico del store ni en Splunk;
+    fluye solo a los observadores en vivo (SSE) para visibilidad en el dashboard.
+    """
+
+    message: str
+
+
 # Union discriminada: cada evento sabe que tipo de dato transporta.
-ObservationEvent = NetworkSeen | ClientAssociated
+ObservationEvent = NetworkSeen | ClientAssociated | StatusEvent

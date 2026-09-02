@@ -76,6 +76,16 @@ class Collector:
         info["firmware"] = self._parser.firmware_id
         return info
 
+    def submit_events(self, events: list[ObservationEvent]) -> None:
+        """Aplica eventos ya parseados (canal de ficheros binarios, p. ej. un
+        pcap entregado por ``BruceStorageSource``) a store + observadores.
+
+        Mismo tratamiento de errores que el canal de lineas: un evento malo
+        no derriba la pipeline.
+        """
+        for event in events:
+            self._apply_event(event)
+
     # ---- interno ----
     def _on_line(self, line: str) -> None:
         self._stats["lines"] += 1
@@ -87,6 +97,9 @@ class Collector:
             return
         if event is None:
             return
+        self._apply_event(event)
+
+    def _apply_event(self, event: ObservationEvent) -> None:
         try:
             self._store.apply(event)
         except Exception:  # un fallo de store no para la pipeline.

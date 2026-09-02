@@ -31,6 +31,7 @@ from ..models import (
     NetworkSeen,
     ObservationEvent,
     SourceType,
+    StatusEvent,
 )
 
 
@@ -136,7 +137,11 @@ class AbstractStore(ABC):
 
         - `NetworkSeen`       -> upsert_network + record_observation
         - `ClientAssociated`  -> upsert_client   + record_observation
+        - `StatusEvent`       -> no-op (el estado del firmware no se persiste;
+          fluye solo a los observadores en vivo)
         """
+        if isinstance(event, StatusEvent):
+            return
         if isinstance(event, NetworkSeen):
             self.upsert_network(event.network, at=event.timestamp)
         elif isinstance(event, ClientAssociated):

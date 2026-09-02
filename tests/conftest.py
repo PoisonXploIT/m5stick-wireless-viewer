@@ -46,6 +46,11 @@ def malformed_log() -> str:
     return (FIXTURES / "malformed_lines.log").read_text(encoding="utf-8")
 
 
+@pytest.fixture
+def bruce_console_log() -> str:
+    return (FIXTURES / "bruce_console.log").read_text(encoding="utf-8")
+
+
 def _seeded_events() -> list[NetworkSeen | ClientAssociated]:
     """Semilla determinista: 3 redes, 2 clientes, 6 observaciones."""
     t1 = NOW - timedelta(hours=2)

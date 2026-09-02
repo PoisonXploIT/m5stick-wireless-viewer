@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import csv
 import json
+import logging
 import os
 import sys
 import time
@@ -46,6 +47,8 @@ from .store.base import ObservationRow, event_to_observation_row
 from .store.memory_store import MemoryStore
 from .store.sqlite_store import SQLiteStore
 from .worker.collector import Collector
+
+logger = logging.getLogger(__name__)
 
 CSV_COLUMNS = (
     "timestamp",
@@ -288,8 +291,34 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
+    # El canal de ficheros de Bruce se cablea antes que el colector; la caja
+    # se rellena cuando el colector existe (on_file no corre antes: el
+    # poller arranca con `run`, ya despues del colector).
+    collector_box: dict[str, Any] = {}
     source: AbstractSource
-    if cfg["source"] == "serial":
+    if cfg["source"] == "bruce":
+        from .parser.pcap import PcapParser
+        from .source.bruce_source import BruceStorageSource
+        from .source.bruce_source import artifacts_dir as _ensure_dir
+
+        baudrate = int(cfg["baudrate"])
+        source = BruceStorageSource(cfg["port"], baudrate)
+        pcap_parser = PcapParser()
+        raw_artifacts = getattr(args, "artifacts_dir", None)
+        out_dir = _ensure_dir(raw_artifacts) if raw_artifacts else None
+
+        def on_file(path: str, data: bytes) -> None:
+            try:
+                events = pcap_parser.parse(data, source="serial")
+            except Exception:
+                logger.exception("no se pudo parsear el pcap %s", path)
+                return
+            if out_dir is not None:
+                (out_dir / Path(path).name).write_bytes(data)
+            collector_box["collector"].submit_events(events)
+
+        source.observe_files(on_file)
+    elif cfg["source"] == "serial":
         from .source.serial_source import list_ports, pick_port
 
         baudrate = int(cfg["baudrate"])
@@ -338,8 +367,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return 3
     db_path = cfg["db_path"]
     store = SQLiteStore(db_path) if db_path else MemoryStore()
-    source_type: SourceType = "serial" if cfg["source"] == "serial" else "file"
+    source_type: SourceType = (
+        "serial" if cfg["source"] in ("serial", "bruce") else "file"
+    )
     collector = Collector(source, parser, store, source_type=source_type)
+    collector_box["collector"] = collector
     exporter = _build_splunk_exporter(cfg)
     app = create_app(store, collector=collector, exporter=exporter)
     import uvicorn
@@ -362,7 +394,12 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     run_p = subparsers.add_parser("run", help="captura + dashboard web (por defecto)")
-    run_p.add_argument("--source", choices=("serial", "file"), default=None)
+    run_p.add_argument(
+        "--source",
+        choices=("serial", "file", "bruce"),
+        default=None,
+        help="serial = Marauder/Evil-M5Project en vivo; bruce = CLI Bruce + poller de storage",
+    )
     run_p.add_argument(
         "--demo",
         action="store_true",
@@ -376,6 +413,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--firmware", default=None, help="auto | marauder | evil_m5project")
     run_p.add_argument("--host", default=None)
     run_p.add_argument("--web-port", dest="web_port", type=int, default=None)
+    run_p.add_argument(
+        "--artifacts-dir",
+        dest="artifacts_dir",
+        default=None,
+        help="guardar los pcaps extraidos de Bruce como artifacts (solo source=bruce)",
+    )
     run_p.add_argument("--db-path", default=None, help="SQLite persistente; sin valor = memoria")
     run_p.add_argument("--config", default=None, help="fichero m5wireless.toml específico")
     run_p.set_defaults(func=_cmd_run)

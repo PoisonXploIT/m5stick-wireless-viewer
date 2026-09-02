@@ -1,0 +1,6 @@
+[   7.8s] Selected: Sniffer
+[   8.4s] [1845679][E][sd_diskio.cpp:761] sdcard_mount(): f_mount failed: (3) The physical drive cannot work
+[   8.9s] [1846188][E][sd_diskio.cpp:128] sdSelectCard(): Select Failed
+[   8.9s] SDCard in a different Bus, using sdcardSPI instance
+[   8.9s] SDCARD NOT mounted, check wiring and format
+[   9.1s] Sniffer started!

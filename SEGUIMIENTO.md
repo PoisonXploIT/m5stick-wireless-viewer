@@ -87,27 +87,45 @@ Serial de Bruce = CLI tipo Flipper (115200 8N1), no stream continuo:
 Ruta de integracion (v3.2, detalle en PLAN.md §6.4 y §7.3):
 
 1. `BruceConsoleParser` con el fixture local (eventos de ciclo de vida).
+   **Hecho**: patterns `Selected: X`, `Sniffer started!`, `SDCARD NOT mounted`,
+   errores ESP-IDF `[N][E]...`; emite `StatusEvent` (nuevo en models; el store
+   lo ignora, Splunk lo salta, SSE lo serializa).
 2. `PcapParser` para pcaps 802.11: handshake → `NetworkSeen` +
-   `ClientAssociated`.
+   `ClientAssociated`. **Hecho**: magic LE/BE, linktype 105, frames de gestion
+   (SSID por tag IE) → `NetworkSeen`; frames de datos con LLC/SNAP 0x888E
+   (EAPOL) → `ClientAssociated`; dedup por BSSID con upgrade de SSID.
+   El fixture real (1 beacon + 1 frame EAPOL en mgmt, RA corrupto) produce
+   2 `NetworkSeen` (con/sin SSID) y 0 `ClientAssociated`: la MAC del cliente
+   no es fiable en esa captura, el caso EAPOL queda cubierto con frames
+   sinteticos correctos.
 3. `BruceStorageSource`: poller `storage list` → diff tamanios → `storage read`
-   → parsers; reutiliza `SerialSource` (thread-safe).
+   → parsers; worker thread propio (el handle serial vive ahi), callback de
+   lineas para la consola + callback de ficheros para el pcap.
+   **Hecho**, con inyeccion `_open_port` y test con transporte falso.
+   PENDING HARDWARE: el formato exacto del listado `storage list <dir>` no se
+   capturo en los fixtures (solo "listado con tamanos"); se parsea de forma
+   tolerante `^<ruta> <tamano>$`. Validar contra COM7 real y, si lista solo
+   nombres relativos, mapear a ruta completa antes del `storage read`.
 4. Evolucin: WebUI Bruce (`bruce.local`, admin/bruce) para control remoto.
+   **Pendiente** (v3.2.1).
 
-Mini prompt para la sesion Bruce:
+Mini prompt para la sesion de validacion Bruce (v3.2.1):
 
 ```text
-Arranca la fase Bruce de m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer
-(rama main; v3.0.1 publicada; 127 tests, ruff + mypy --strict limpios).
+Arranca la validacion de v3.2 Bruce de m5stick-wireless-viewer en
+C:/Users/Sammi/m5stick-wireless-viewer (rama main; v3.0.2 publicada; 154 tests,
+ruff + mypy --strict limpios).
 Lee SEGUIMIENTO.md (seccion 'Bruce (M5Stick)') y PLAN.md §6.4/§7.3
 (C:/Users/Sammi/m5stick-wireless-viewer-plan).
 Hardware: M5Stick+Bruce en COM7 @ 115200 sin SD (LittleFS OK); ESP32 V6+Marauder
 separado para el stream en vivo.
-Objetivo v3.2 Bruce: (1) BruceConsoleParser con data/bruce_capture.log;
-(2) PcapParser de handshakes 802.11 (fixture local data/bruce_HS_*.pcap);
-(3) BruceStorageSource: poller storage list/read por serial.
+Objetivo v3.2.1: (1) validacion contra hardware real de BruceStorageSource:
+capturar la salida exacta de `storage list BrucePCAP/handshakes` y ajustar el
+parseo/mapeo de rutas si no es `<ruta> <tamano>`; corrida end-to-end
+`m5w run --source bruce --artifacts-dir` con un sniffer real; (2) WebUI Bruce
+(bruce.local, admin/bruce) para control remoto.
 Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
-emojis, NO commitear data/ (datos reales), parsers solo con fixture real,
-SEGUIMIENTO.md actualizado al cerrar.
+emojis, NO commitear data/ (datos reales), SEGUIMIENTO.md actualizado al cerrar.
 ```
 
 ---
@@ -382,8 +400,8 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
 ## Pendientes / riesgos abiertos
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
-- **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.1 publicada en GitHub y PyPI (2026-09-02).
-- **v3.2 Bruce**: pendiente (ver seccion 'Bruce (M5Stick)' arriba): parsers de consola/pcap + `BruceStorageSource`.
+- **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
+- **v3.2 Bruce**: implementado (parsers consola/pcap + `BruceStorageSource`, 154 tests). Pendiente: validacion contra COM7 real del formato `storage list` y corrida end-to-end; WebUI Bruce (ver seccion 'Bruce (M5Stick)').
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo
