@@ -76,6 +76,22 @@ class HealthResponse(BaseModel):
     clients: int
 
 
+class StatusResponse(BaseModel):
+    """Estado de conexion de la fuente para el widget del dashboard.
+
+    - `state`: conectado / reconectando / esperando / reproduciendo (file).
+    - `port`/`baudrate`: solo con fuente serial; `path`: solo con file.
+    - `firmware`: el parser configurado (auto = composite).
+    """
+
+    source: str | None
+    state: str | None
+    port: str | None
+    baudrate: int | None
+    path: str | None
+    firmware: str | None
+
+
 class ChannelDistributionResponse(BaseModel):
     channels: dict[int, int]
 

@@ -12,9 +12,12 @@ pytest.importorskip("fastapi")
 
 from fastapi.testclient import TestClient
 
+from m5wireless.parser.registry import get_parser
+from m5wireless.source.file_source import FileSource
 from m5wireless.store import MemoryStore
 from m5wireless.web import create_app
 from m5wireless.web.api import get_store
+from m5wireless.worker.collector import Collector
 
 # Mismo instante de referencia que tests/conftest.py (determinista).
 NOW = datetime(2026, 1, 15, 10, 0, 0, tzinfo=UTC)
@@ -34,6 +37,39 @@ def client(seeded_store: MemoryStore) -> TestClient:
         yield test_client
 
 
+# ---- status ----
+
+
+def test_status_without_collector(client: TestClient) -> None:
+    res = client.get("/api/status")
+    assert res.status_code == 200
+    body = res.json()
+    assert body == {
+        "source": None,
+        "state": None,
+        "port": None,
+        "baudrate": None,
+        "path": None,
+        "firmware": None,
+    }
+
+
+def test_status_with_file_collector(
+    seeded_store: MemoryStore, marauder_log_path
+) -> None:
+    source = FileSource(marauder_log_path)
+    collector = Collector(source, get_parser("marauder"), seeded_store, source_type="file")
+    app = create_app(seeded_store, collector=collector)
+    with TestClient(app) as test_client:
+        res = test_client.get("/api/status")
+    assert res.status_code == 200
+    body = res.json()
+    assert body["source"] == "file"
+    assert body["state"] in ("esperando", "reproduciendo")
+    assert body["path"] == str(marauder_log_path)
+    assert body["firmware"] == "marauder"
+
+
 # ---- / ----
 
 
@@ -43,6 +79,7 @@ def test_root(client: TestClient) -> None:
     assert res.status_code == 200
     assert "text/html" in res.headers["content-type"]
     assert 'id="networks-table"' in res.text
+    assert 'id="conn-status"' in res.text
 
 
 # ---- health ----

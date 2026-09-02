@@ -46,6 +46,7 @@ class FileSource(AbstractSource):
                 if line:
                     callback(line.rstrip("\n"))
                 elif not self._follow:
+                    self._state = "terminado"
                     break  # EOF en modo reproduccion: terminar.
                 else:
                     await asyncio.sleep(self._poll_interval)

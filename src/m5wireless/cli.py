@@ -323,7 +323,10 @@ def _cmd_run(args: argparse.Namespace) -> int:
         if not log_path.exists():
             print(f"error: no existe el fichero de log: {log_path}", file=sys.stderr)
             return 2
-        source = FileSource(log_path, follow=True)
+        # El demo reproduce el log completo de una vez (follow=False); un log
+        # real en modo file se sigue como tail -f (follow=True).
+        follow = not getattr(args, "demo", False)
+        source = FileSource(log_path, follow=follow)
     try:
         from .web.app import create_app
     except ImportError as exc:

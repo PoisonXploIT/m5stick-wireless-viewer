@@ -67,6 +67,11 @@ body {
   border-color: var(--rssi-bad);
 }
 
+.status-warn {
+  color: #b58900;
+  border-color: #b58900;
+}
+
 .stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

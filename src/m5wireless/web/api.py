@@ -34,6 +34,7 @@ from .schemas import (
     HistoryRow,
     NetworkDetail,
     NetworkListResponse,
+    StatusResponse,
     client_read,
     console_line,
     history_row,
@@ -85,6 +86,29 @@ def health(request: Request, store: AbstractStore = Depends(get_store)) -> Healt
         collector=stats,
         networks=len(store.get_networks()),
         clients=len(store.get_clients()),
+    )
+
+
+# ---- estado de conexion ----
+
+
+@router.get("/api/status", response_model=StatusResponse)
+def status(request: Request) -> StatusResponse:
+    """Estado de la fuente (puerto, baudrate, firmware, conectado/reconectando)."""
+    collector = getattr(request.app.state, "collector", None)
+    if not isinstance(collector, Collector):
+        return StatusResponse(
+            source=None, state=None, port=None, baudrate=None, path=None, firmware=None
+        )
+    info = collector.status()
+    baudrate = info.get("baudrate")
+    return StatusResponse(
+        source=collector.source_type,
+        state=str(info["state"]),
+        port=cast("str | None", info.get("port")),
+        baudrate=int(baudrate) if isinstance(baudrate, int) else None,
+        path=cast("str | None", info.get("path")),
+        firmware=str(info["firmware"]),
     )
 
 

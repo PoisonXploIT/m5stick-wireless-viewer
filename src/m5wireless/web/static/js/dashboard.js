@@ -11,6 +11,7 @@
   const MAX_CONSOLE_LINES = 500;
   const RECONNECT_MS = 3000;
   const CONSOLE_LIMIT = 200;
+  const STATUS_POLL_MS = 5000;
 
   // ---- estado ----
   const networks = new Map(); // bssid -> {bssid, ssid, channel, rssi, last_seen}
@@ -27,6 +28,7 @@
   const consoleEl = $("console");
   const channelsEl = $("channels");
   const statusEl = $("sse-status");
+  const connStatusEl = $("conn-status");
   const filterText = $("filter-text");
   const filterChannel = $("filter-channel");
   const filterRssi = $("filter-rssi");
@@ -271,6 +273,33 @@
     }
   }
 
+  // ---- estado de conexion (polling ligero de /api/status) ----
+
+  async function refreshConnStatus() {
+    let data;
+    try {
+      data = await fetchJSON("/api/status");
+    } catch (_err) {
+      connStatusEl.textContent = "fuente: sin datos";
+      connStatusEl.className = "status status-offline";
+      return;
+    }
+    if (!data.source || !data.state) {
+      connStatusEl.textContent = "fuente: —";
+      connStatusEl.className = "status status-offline";
+      return;
+    }
+    const bits = [];
+    if (data.port) bits.push(`${data.port} @ ${data.baudrate ?? 115200}`);
+    if (data.path) bits.push(data.path);
+    if (data.firmware) bits.push(data.firmware);
+    bits.push(data.state);
+    const ok = data.state === "conectado" || data.state === "reproduciendo";
+    connStatusEl.textContent = `fuente: ${bits.join(" · ")}`;
+    connStatusEl.title = connStatusEl.textContent;
+    connStatusEl.className = `status ${ok ? "status-online" : "status-warn"}`;
+  }
+
   function setSseStatus(online) {
     statusEl.textContent = online ? "SSE: conectado" : "SSE: desconectado";
     statusEl.className = `status ${online ? "status-online" : "status-offline"}`;
@@ -345,6 +374,9 @@
         $("meta-source").textContent = h.source || h.store || "—";
       })
       .catch(() => {});
+
+    refreshConnStatus();
+    setInterval(refreshConnStatus, STATUS_POLL_MS);
 
     renderTable();
     updateCounters();

@@ -70,6 +70,12 @@ class Collector:
     def stats(self) -> dict[str, int]:
         return dict(self._stats)
 
+    def status(self) -> dict[str, object]:
+        """Estado de conexion para el dashboard: estado de la fuente + parser."""
+        info = dict(self._source.status())
+        info["firmware"] = self._parser.firmware_id
+        return info
+
     # ---- interno ----
     def _on_line(self, line: str) -> None:
         self._stats["lines"] += 1
