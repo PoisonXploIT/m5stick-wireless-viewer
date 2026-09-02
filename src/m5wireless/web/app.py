@@ -81,7 +81,9 @@ def create_app(
             if exporter is not None and exporter_started:
                 await exporter.stop()
 
-    app = FastAPI(title="m5wireless", version="3.0.0", lifespan=lifespan)
+    from .. import __version__
+
+    app = FastAPI(title="m5wireless", version=__version__, lifespan=lifespan)
     app.state.store = store
     app.state.hub = hub
     app.state.collector = collector

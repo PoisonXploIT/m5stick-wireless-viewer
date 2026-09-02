@@ -6,11 +6,37 @@ Fusiona `wifi-marauder-viewer` y `Visualizacion_extendida_M5StickPlus2` sobre un
 arquitectura modular: parsers por firmware, fuentes serial/file, store con
 historico (SQLite), API web (FastAPI + SSE) y exporter a Splunk HEC.
 
+## Conectar tu dispositivo
+
+El firmware (Marauder, Evil-M5Project, ...) corre en la M5Stick; este proyecto
+lee su **salida serial** por USB. No hay que instalar nada en el stick mas
+allá del firmware habitual.
+
+```bash
+# 1. Conecta la M5Stick por USB y verifica que aparece (pista de placa):
+m5wireless ports
+
+# 2. Arranca captura + dashboard (http://localhost:8000).
+#    --port es opcional: sin el, autodeteccion (prefiere M5Stick/ESP32).
+m5wireless run --source serial --port COM3
+```
+
+Al arrancar se imprime la conexion resuelta:
+`m5wireless: serial COM3 @ 115200 (USB Serial (COM3)) [posible M5Stick (M5Stack)]`.
+Si no hay ningun puerto, el error lista los encontrados y sugiere `--port`.
+El dashboard muestra en la barra superior puerto, baudrate, firmware y estado
+(conectado / reconectando / esperando).
+
+Sin hardware: `m5wireless run --demo` reproduce un log de ejemplo y deja el
+dashboard listo para probarse. Si ya tienes un log grabado:
+`m5wireless run --source file --log-path scan.log`.
+
 ## Estado
 
-v3.0.0 funcional: modelos, parsers, stores, fuentes, colector, dashboard web en
-vivo (SSE), export CSV/JSON, CLI unificada y Docker. Seguimiento de fases en
-`SEGUIMIENTO.md`.
+v3.0.1: claridad de conexion (`m5wireless ports`, salida explicita al arrancar,
+widget de estado en el dashboard, modo `--demo`). v3.0.0: modelos, parsers,
+stores, fuentes, colector, dashboard web en vivo (SSE), export CSV/JSON, CLI
+unificada y Docker. Seguimiento de fases en `SEGUIMIENTO.md`.
 
 ## Instalacion
 
@@ -24,6 +50,12 @@ El paquete crea el comando `m5wireless` (`m5wireless --version`).
 ## Uso rapido
 
 ```bash
+# Listar puertos serie con pista de placa (M5Stick/ESP32)
+m5wireless ports
+
+# Demo sin hardware: log de ejemplo incluido + dashboard
+m5wireless run --demo
+
 # Captura serial en vivo + dashboard web (http://localhost:8000)
 m5wireless run
 

@@ -11,8 +11,8 @@ from importlib.metadata import entry_points, version
 import m5wireless
 
 
-def test_distribution_version_is_3_0_0() -> None:
-    assert version("m5stick-wireless-viewer") == "3.0.0"
+def test_distribution_version_is_3_0_1() -> None:
+    assert version("m5stick-wireless-viewer") == "3.0.1"
 
 
 def test_package_version_matches_distribution() -> None:

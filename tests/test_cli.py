@@ -13,11 +13,13 @@ import pytest
 from m5wireless import cli
 
 
-def test_version_prints_3_0_0(capsys: pytest.CaptureFixture[str]) -> None:
+def test_version_prints_package_version(capsys: pytest.CaptureFixture[str]) -> None:
+    import m5wireless
+
     with pytest.raises(SystemExit) as excinfo:
         cli.main(["--version"])
     assert excinfo.value.code == 0
-    assert "3.0.0" in capsys.readouterr().out
+    assert m5wireless.__version__ in capsys.readouterr().out
 
 
 def test_export_csv_offline(marauder_log_path: Path, tmp_path: Path) -> None:

@@ -4,26 +4,24 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: Fase 5 completa (commit `a418dc5`), v3.0.0 funcional.
+Última actualización: v3.0.1 completo (commits `d83d823`, `ccbd91b` y cierre
+README/version), claridad de conexion. Proximo objetivo: v3.1.
 
 ---
 
 ## PROMPT DE RETOMADA (copiar en sesión nueva)
 
 ```text
-Reanuda el proyecto m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer.
-Lee primero SEGUIMIENTO.md y PLAN.md (en C:/Users/Sammi/m5stick-wireless-viewer-plan/PLAN.md).
-Estado: Fase 5 completa, v3.0.0 funcional (commit a418dc5): dashboard + SSE (Fases 3-4),
-exporter Splunk HEC robusto (cola + circuit breaker + spool), CLI unificada m5wireless
-(run/export/snapshot), packaging hatchling con extras [serial]/[web]/[splunk], Dockerfile
-+ docker-compose. 103 tests pasando, ruff y mypy --strict limpios sobre src/m5wireless.
-Venv en .venv (.venv/Scripts/python -m pytest / ruff / mypy). Reglas de proyecto: sin
-datetime.utcnow (usar utc_now() aware), parsers con fixtures reales solo, registro de
-parsers almacena clases no instancias, ruff+mypy --strict limpios en cada commit (mypy
-sobre src/m5wireless; NO sobre tests/). No uses emojis en salidas.
-Siguiente (Fase 6-7 del plan): CI/CD, tag v3.0.0, archivar wifi-marauder-viewer con README
-de redireccion, repo remoto (pendiente de Fase 0). v3.1: vista de detalle de red (endpoint
-ya existe), graficas Chart.js, parsers stubs con fixtures reales.
+Continua m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
+(rama main; v3.0.0 publicada en GitHub y PyPI; v3.0.1 local: claridad de conexion).
+Lee SEGUIMIENTO.md (repo) y PLAN.md (C:\Users\Sammi\m5stick-wireless-viewer-plan).
+Objetivo: v3.1 — (1) vista de detalle de red: GET /api/networks/{bssid} ya existe,
+falta pagina HTML + link desde la tabla de index.html; (2) Chart.js con evolucion
+RSSI/actividad temporal por red; (3) parsers stubs WiFi Duck / Hash Monster /
+PacketMonitor SOLO con fixtures reales.
+Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
+emojis, smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md
+actualizado al cerrar. Venv .venv; 127 tests pasando.
 ```
 
 ---
@@ -41,8 +39,22 @@ ya existe), graficas Chart.js, parsers stubs con fixtures reales.
 | Fase 6 (calidad/empaquetado: CI/CD) | Parcial: pyproject/Docker listos; falta CI y releases automaticas |
 | Fase 7 (release v3.0.0 + deprecacion) | Pendiente: tag, archivar repo legado, repo remoto |
 
-Tests: 103 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
-Cobertura web/: 97% (criterio minimo 80%).
+Tests: 127 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+
+### v3.0.1 — claridad de conexion (completo, local)
+
+- `m5wireless ports`: lista puertos serie con VID/PID y pista de placa (M5Stick
+  por VID 2E8A, ESP32 CDC/JTAG, CP210x, CH34x). Commits `d83d823`, `ccbd91b`.
+- `run --source serial` resuelve el puerto antes de arrancar e imprime
+  `serial COM3 @ 115200 (desc) [hint]`; sin puertos, lista los encontrados,
+  sugiere `--port` y sale con exit 2.
+- `GET /api/status` + widget en la barra superior del dashboard (puerto,
+  baudrate, firmware, estado conectado/reconectando/esperando/reproduciendo/
+  terminado), polling 5s. Fuentes exponen `status()`; `Collector.status()`
+  agrega el firmware_id.
+- `run --demo`: reproduce el log de ejemplo incluido en el paquete
+  (`src/m5wireless/data/demo_scan.log`, `follow=False`) sin hardware.
+- README: seccion "Conectar tu dispositivo" al inicio. Version 3.0.1.
 Venv: `.venv/` (paquete instalado editable v3.0.0 con entry point `m5wireless`; extras
 serial/web/splunk + types-pyserial; fastapi/uvicorn/httpx instalados).
 
