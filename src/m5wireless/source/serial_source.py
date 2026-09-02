@@ -20,7 +20,9 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import threading
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +31,82 @@ from .base import AbstractSource, LineCallback
 logger = logging.getLogger(__name__)
 
 _SENTINEL: object = object()
+
+
+@dataclass(frozen=True)
+class PortInfo:
+    """Puerto serie enumerado (wrapper minimo sobre ``serial.tools.list_ports``)."""
+
+    device: str
+    description: str
+    vid: str | None = None
+    pid: str | None = None
+
+
+def _vid_pid_from_hwid(hwid: str) -> tuple[str | None, str | None]:
+    """Extrae VID/PID del campo ``hwid`` (p. ej. ``USB VID:PID=2E8A:0003``)."""
+    match = re.search(r"VID:PID=([0-9A-Fa-f]{4}):([0-9A-Fa-f]{4})", hwid)
+    if match is None:
+        return None, None
+    return match.group(1).upper(), match.group(2).upper()
+
+
+def list_ports() -> list[PortInfo]:
+    """Lista los puertos serie disponibles (pyserial, import perezoso)."""
+    from serial.tools import list_ports as _list  # dependencia opcional.
+
+    ports: list[PortInfo] = []
+    for port in _list.comports():
+        vid, pid = _vid_pid_from_hwid(str(port.hwid or ""))
+        ports.append(
+            PortInfo(
+                device=port.device,
+                description=str(port.description or ""),
+                vid=vid,
+                pid=pid,
+            )
+        )
+    return ports
+
+
+def port_hint(info: PortInfo) -> str | None:
+    """Pista de que firmware/placa hay detras del puerto (o ``None``).
+
+    La M5StickC aparece como "USB Serial (COMx)" con VID 0x2E8A, asi que el
+    match va por VID tanto como por descripcion.
+    """
+    text = info.description.lower()
+    vid = (info.vid or "").lower()
+    if "m5stack" in text or vid == "2e8a":
+        return "posible M5Stick (M5Stack)"
+    if "esp32" in text or "usb jtag" in text:
+        return "ESP32 (CDC/JTAG)"
+    if "cp210x" in text or "cp2102" in text:
+        return "CP210x (UART)"
+    if "ch340" in text or "ch341" in text:
+        return "CH34x (UART)"
+    if "cdc acm" in text or "usb serial" in text:
+        return "CDC generico"
+    return None
+
+
+def pick_port(preferred: str | None = None) -> PortInfo | None:
+    """Elige el puerto para autodeteccion.
+
+    Con ``preferred`` (p. ej. ``COM3``) se devuelve ese dispositivo sin validar;
+    sin preferido, prefiere puertos con pista M5Stick/ESP32 y si no, el primero.
+    Devuelve ``None`` solo cuando no hay ningun puerto disponible.
+    """
+    if preferred is not None:
+        return PortInfo(device=preferred, description="(especificado por el usuario)")
+    ports = list_ports()
+    if not ports:
+        return None
+    for info in ports:
+        hint = port_hint(info)
+        if hint is not None and ("M5Stick" in hint or "ESP32" in hint):
+            return info
+    return ports[0]
 
 
 class SerialSource(AbstractSource):
@@ -52,8 +130,19 @@ class SerialSource(AbstractSource):
         self._max_backoff = max_backoff
         self._running = False
         self._queue: asyncio.Queue[Any] | None = None
+        self._state = "esperando"
+        self._last_port: str | None = port
 
     # ---- API publica ----
+    def status(self) -> dict[str, object]:
+        """Estado de conexion para el dashboard (thread-safe a efectos practicos:
+        escrituras simples desde el hilo lector)."""
+        return {
+            "state": self._state,
+            "port": self._last_port,
+            "baudrate": self._baudrate,
+        }
+
     async def start(self, callback: LineCallback) -> None:
         loop = asyncio.get_running_loop()
         self._running = True
@@ -103,6 +192,7 @@ class SerialSource(AbstractSource):
         handle: Any = None
         try:
             handle = self._open_port()
+            self._state = "conectado"
             while self._running:
                 raw: bytes = handle.readline()  # b'' en timeout/sin datos.
                 if not raw:
@@ -115,6 +205,7 @@ class SerialSource(AbstractSource):
                         pf.write(line + "\n")
                 loop.call_soon_threadsafe(queue.put_nowait, line)
         except Exception:  # cualquier fallo de puerto -> reconectar con backoff.
+            self._state = "reconectando"
             logger.exception("error en lectura serial; se reintentara")
         finally:
             if handle is not None:
@@ -133,9 +224,7 @@ class SerialSource(AbstractSource):
 
 
 def _autodetect() -> str:
-    from serial.tools import list_ports  # dependencia opcional; import perezoso.
-
-    ports = list_ports.comports()
-    if not ports:
+    info = pick_port(None)
+    if info is None:
         raise ConnectionError("no se encontro ningun puerto serial")
-    return ports[0].device
+    return info.device

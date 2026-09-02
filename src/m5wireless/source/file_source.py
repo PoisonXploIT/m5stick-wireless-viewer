@@ -28,9 +28,14 @@ class FileSource(AbstractSource):
         self._follow = follow
         self._poll_interval = poll_interval
         self._running = False
+        self._state = "esperando"
+
+    def status(self) -> dict[str, object]:
+        return {"state": self._state, "path": str(self._path)}
 
     async def start(self, callback: LineCallback) -> None:
         self._running = True
+        self._state = "reproduciendo"
         # Lectura bloqueante a proposito: FileSource es de un solo consumidor y su
         # callback es sincrono por contrato; el modo principal es reproduccion.
         with open(self._path, "r", encoding="utf-8", errors="replace") as handle:  # noqa: ASYNC230

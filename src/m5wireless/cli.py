@@ -113,6 +113,11 @@ def _load_config_file(path: Path) -> dict[str, Any]:
     return config
 
 
+def _demo_log_path() -> Path:
+    """Log de ejemplo incluido en el paquete (modo ``run --demo``)."""
+    return Path(__file__).parent / "data" / "demo_scan.log"
+
+
 def _resolve_run_config(args: argparse.Namespace) -> dict[str, Any]:
     """CLI > env (M5W_*) > m5wireless.toml > defaults."""
     config: dict[str, Any] = dict(DEFAULTS)
@@ -245,8 +250,39 @@ def _build_splunk_exporter(cfg: dict[str, Any]) -> Any | None:
     return SplunkHecExporter(config)
 
 
+def _cmd_ports(args: argparse.Namespace) -> int:
+    """Lista puertos serie con una pista de que placa hay detras."""
+    from .source.serial_source import list_ports, port_hint
+
+    try:
+        ports = list_ports()
+    except ImportError:
+        print(
+            "error: pyserial no esta instalado; instala el extra con: "
+            "pip install m5wireless[serial]",
+            file=sys.stderr,
+        )
+        return 3
+    if not ports:
+        print("no se encontro ningun puerto serial", file=sys.stderr)
+        print(
+            "pista: comprueba el cable USB, cambia de puerto y vuelve a ejecutar "
+            "este comando (el dispositivo suele tardar unos segundos en aparecer)"
+        )
+        return 2
+    for info in ports:
+        hint = port_hint(info)
+        vid_pid = f"{info.vid}/{info.pid}" if info.vid and info.pid else "-"
+        print(f"{info.device}  {vid_pid}  {hint or ''}  {info.description}")
+    return 0
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
     cfg = _resolve_run_config(args)
+    if getattr(args, "demo", False):
+        demo_path = _demo_log_path()
+        cfg["source"] = "file"
+        cfg["log_path"] = str(demo_path)
     try:
         parser = get_parser(str(cfg["firmware"]))
     except ValueError as exc:
@@ -254,7 +290,34 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return 2
     source: AbstractSource
     if cfg["source"] == "serial":
-        source = SerialSource(cfg["port"], int(cfg["baudrate"]))
+        from .source.serial_source import list_ports, pick_port
+
+        baudrate = int(cfg["baudrate"])
+        info = pick_port(cfg["port"])
+        if info is None:
+            print(
+                "error: no se encontro ningun puerto serial para autodetecion",
+                file=sys.stderr,
+            )
+            ports = list_ports()
+            if ports:
+                print("puertos encontrados (usa --port):", file=sys.stderr)
+                for found in ports:
+                    print(f"  {found.device}  {found.description}", file=sys.stderr)
+            else:
+                print(
+                    "pista: ejecuta 'm5wireless ports' con el dispositivo conectado"
+                )
+            return 2
+        from .source.serial_source import port_hint
+
+        desc = info.description if info.description else ""
+        hint = port_hint(info)
+        print(
+            f"m5wireless: serial {info.device} @ {baudrate} ({desc})"
+            + (f" [{hint}]" if hint else "")
+        )
+        source = SerialSource(info.device, baudrate)
     else:
         log_path = Path(str(cfg["log_path"]))
         if not log_path.exists():
@@ -280,6 +343,8 @@ def _cmd_run(args: argparse.Namespace) -> int:
 
     host = str(cfg["host"])
     port = int(cfg["web_port"])
+    if getattr(args, "demo", False):
+        print(f"m5wireless: DEMO (log de ejemplo: {cfg['log_path']})")
     print(f"m5wireless: fuente={cfg['source']} web=http://{host}:{port}")
     uvicorn.run(app, host=host, port=port, log_level="info")
     return 0
@@ -296,6 +361,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_p = subparsers.add_parser("run", help="captura + dashboard web (por defecto)")
     run_p.add_argument("--source", choices=("serial", "file"), default=None)
     run_p.add_argument(
+        "--demo",
+        action="store_true",
+        help="modo demo: reproduce el log de ejemplo incluido, sin hardware",
+    )
+    run_p.add_argument(
         "--port", default=None, help="puerto serial (p. ej. COM3); None = autodetección"
     )
     run_p.add_argument("--baudrate", type=int, default=None)
@@ -306,6 +376,11 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--db-path", default=None, help="SQLite persistente; sin valor = memoria")
     run_p.add_argument("--config", default=None, help="fichero m5wireless.toml específico")
     run_p.set_defaults(func=_cmd_run)
+
+    ports_p = subparsers.add_parser(
+        "ports", help="listar puertos serie y pistas de placa (M5Stick/ESP32)"
+    )
+    ports_p.set_defaults(func=_cmd_ports)
 
     export_p = subparsers.add_parser("export", help="conversión offline de un log")
     export_sub = export_p.add_subparsers(dest="format", required=True)

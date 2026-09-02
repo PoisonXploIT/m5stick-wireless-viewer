@@ -25,3 +25,10 @@ class AbstractSource(ABC):
 
     @abstractmethod
     async def stop(self) -> None: ...
+
+    def status(self) -> dict[str, object]:
+        """Estado de la fuente para el dashboard (p. ej. puerto, estado).
+
+        Implementacion por defecto minima; las fuentes concretas lo amplian.
+        """
+        return {"state": "desconocido"}
