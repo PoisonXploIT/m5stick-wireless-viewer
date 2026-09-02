@@ -12,7 +12,7 @@ import m5wireless
 
 
 def test_distribution_version_is_3_0_1() -> None:
-    assert version("m5stick-wireless-viewer") == "3.0.1"
+    assert version("m5stick-wireless-viewer") == "3.0.2"
 
 
 def test_package_version_matches_distribution() -> None:

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "m5stick-wireless-viewer"
-version = "3.0.1"
+version = "3.0.2"
 description = "Dashboard y pipeline de datos para firmwares de hardware hacking WiFi en ESP32 (Marauder, Evil-M5Project, ...)"
 readme = "README.md"
 requires-python = ">=3.11"
