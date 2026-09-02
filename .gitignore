@@ -9,8 +9,10 @@ build/
 m5wireless.db
 *.db
 *.log
-# Capturas reales (datos de casa): nunca al git
-data/
+# Capturas reales (datos de casa): nunca al git (solo el data/ del root)
+/data/
+# Demo empaquetado en el paquete: SI va al git
+!src/m5wireless/data/demo_scan.log
 snapshots/
 logs/
 .coverage
