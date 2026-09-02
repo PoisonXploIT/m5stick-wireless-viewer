@@ -9,6 +9,8 @@ build/
 m5wireless.db
 *.db
 *.log
+# Capturas reales (datos de casa): nunca al git
+data/
 snapshots/
 logs/
 .coverage

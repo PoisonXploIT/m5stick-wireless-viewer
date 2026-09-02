@@ -60,6 +60,58 @@ serial/web/splunk + types-pyserial; fastapi/uvicorn/httpx instalados).
 
 ---
 
+### Bruce (M5Stick) — hallazgos y ruta de integracion (2026-09-02)
+
+Hardware en la mesa:
+
+- **M5Stick + Bruce** en `COM7` @ 115200 (puente CH9102). SIN tarjeta SD: los
+  ficheros van a LittleFS y funciona igual (Bruce cae a LittleFS sin SD).
+- **ESP32 V6 + Marauder** con SD: fuente en vivo por serial (parser ya existe);
+  para sacar sus ficheros, su web UI o extraer la SD.
+
+Serial de Bruce = CLI tipo Flipper (115200 8N1), no stream continuo:
+
+- Escribe eventos: `Selected: X`, `Sniffer started!`, errores (`SDCARD NOT
+  mounted...`), rutas. Los scans vuelcan resultados sobre todo a pantalla; en
+  sniffer la consola calla.
+- Comandos probados (solo lectura, no detienen el ataque):
+  - `storage list [dir]` → listado con tamanos; dirs: `BrucePCAP/`,
+    `BrucePCAP/handshakes/`, `BruceRFID/`.
+  - `storage read <path>` → echo `COMMAND: ...\r\n` (longitud variable) + bytes
+    crudos. Validado extrayendo un handshake real:
+    `BrucePCAP/handshakes/HS_E051630EB6EA_MiFibra-B6E8.pcap` (444 B, magic
+    `d4c3b2a1`, linktype 105 = IEEE 802.11).
+- Fixtures locales (NO commitear: datos reales de casa): `data/bruce_capture.log`
+  y `data/bruce_HS_*.pcap`. `data/` esta en .gitignore.
+
+Ruta de integracion (v3.2, detalle en PLAN.md §6.4 y §7.3):
+
+1. `BruceConsoleParser` con el fixture local (eventos de ciclo de vida).
+2. `PcapParser` para pcaps 802.11: handshake → `NetworkSeen` +
+   `ClientAssociated`.
+3. `BruceStorageSource`: poller `storage list` → diff tamanios → `storage read`
+   → parsers; reutiliza `SerialSource` (thread-safe).
+4. Evolucin: WebUI Bruce (`bruce.local`, admin/bruce) para control remoto.
+
+Mini prompt para la sesion Bruce:
+
+```text
+Arranca la fase Bruce de m5stick-wireless-viewer en C:/Users/Sammi/m5stick-wireless-viewer
+(rama main; v3.0.1 publicada; 127 tests, ruff + mypy --strict limpios).
+Lee SEGUIMIENTO.md (seccion 'Bruce (M5Stick)') y PLAN.md §6.4/§7.3
+(C:/Users/Sammi/m5stick-wireless-viewer-plan).
+Hardware: M5Stick+Bruce en COM7 @ 115200 sin SD (LittleFS OK); ESP32 V6+Marauder
+separado para el stream en vivo.
+Objetivo v3.2 Bruce: (1) BruceConsoleParser con data/bruce_capture.log;
+(2) PcapParser de handshakes 802.11 (fixture local data/bruce_HS_*.pcap);
+(3) BruceStorageSource: poller storage list/read por serial.
+Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
+emojis, NO commitear data/ (datos reales), parsers solo con fixture real,
+SEGUIMIENTO.md actualizado al cerrar.
+```
+
+---
+
 ## Decisiones clave (con justificación)
 
 1. **Base del plan**: `m5stick-wireless-viewer-plan/PLAN.md` (fuente de verdad de fases y arquitectura).
@@ -330,7 +382,8 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
 ## Pendientes / riesgos abiertos
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
-- **Fase 0 incompleta**: falta repo remoto y `git remote add` (acción del usuario).
+- **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.1 publicada en GitHub y PyPI (2026-09-02).
+- **v3.2 Bruce**: pendiente (ver seccion 'Bruce (M5Stick)' arriba): parsers de consola/pcap + `BruceStorageSource`.
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo
