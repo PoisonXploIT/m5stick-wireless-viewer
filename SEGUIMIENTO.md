@@ -133,17 +133,20 @@ Corrida end-to-end con sniffer real (2026-09-03, COM7):
     cambia el alcance del item pendiente: v3.2.1 puede ser "integrar/usar la
     WebUI de Bruce" (bruce.local, admin/bruce) en vez de construir control
     remoto desde cero; decidir al abrir la sesion.
-- Limitacion de datos anotada: los timestamps del pcap de Bruce salen sin
-  reloj sincronizado (epoch ~0), asi que `first_seen`/`last_seen` quedan en
-  1970. Candidato a v3.2.1+: si el ts del frame es implausible, anclar al
-  tiempo de recepcion.
+- Limitacion de datos RESUELTA (fix local, pendiente de release): los
+timestamps del pcap de Bruce salen sin reloj sincronizado (epoch ~0), asi
+que `first_seen`/`last_seen` quedaban en 1970. Fix: `PcapParser.parse()`
+admite `received_at` (default `utc_now()`) y `_sanitize_ts()` ancla al
+momento de recepcion si el ts del frame es implausible (año < 2000 o futuro
+mas alla de 24 h); lo plausible se conserva. Tests: reloj sin sincronizar,
+reloj futuro, ts plausible intacto y fixture real anclado.
 
 Mini prompt para la sesion de validacion Bruce (v3.2.1):
 
 ```text
 Arranca la validacion de v3.2 Bruce de m5stick-wireless-viewer en
-C:/Users/Sammi/m5stick-wireless-viewer (rama main; v3.0.2 publicada; 154 tests,
-ruff + mypy --strict limpios).
+C:/Users/Sammi/m5stick-wireless-viewer (rama main; v3.2.0 publicada; 158 tests,
+ruff + mypy --strict limpios; fix de timestamps Bruce local sin release).
 Lee SEGUIMIENTO.md (seccion 'Bruce (M5Stick)') y PLAN.md §6.4/§7.3
 (C:/Users/Sammi/m5stick-wireless-viewer-plan).
 Hardware: M5Stick+Bruce en COM7 @ 115200 sin SD (LittleFS OK); ESP32 V6+Marauder
@@ -151,7 +154,8 @@ separado para el stream en vivo.
 Objetivo v3.2.1: WebUI Bruce (bruce.local, admin/bruce) para control remoto.
 NOTA: Bruce v1.15 trae su propio web server (`webui` por serial); decidir si
 integrar ese en vez de construir control desde cero (ver seccion Bruce).
-E2E con sniffer real ya esta hecha; anotar aqui si aparecen EAPOL sanos.
+E2E con sniffer real ya esta hecha (fix de timestamps 1970 incluido,
+pending de release); anotar aqui si aparecen EAPOL sanos.
 Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
 emojis, NO commitear data/ (datos reales), SEGUIMIENTO.md actualizado al cerrar.
 ```

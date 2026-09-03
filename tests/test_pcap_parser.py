@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import glob
 import struct
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -21,6 +21,8 @@ from m5wireless.parser.pcap import PcapParseError, PcapParser
 
 AP_MAC = "aa:bb:cc:dd:ee:01"
 CLIENT_MAC = "0a:5e:1d:a6:e0:51"
+# Instante de recepcion fijo para los tests de timestamps (aware UTC).
+NOW = datetime(2026, 9, 3, 12, 0, 0, tzinfo=UTC)
 
 
 # ---------------------------------------------------------------------------
@@ -85,15 +87,32 @@ def _wrap_pcap(frames: list[bytes]) -> bytes:
 
 class TestPcapParserSynthetic:
     def test_hidden_ssid_network_seen(self) -> None:
-        beacon = _build_mgmt(ts=(100, 500_000))
-        events = PcapParser().parse(_wrap_pcap([beacon]))
+        beacon = _build_mgmt(ts=(1_780_000_000, 500_000))
+        events = PcapParser().parse(_wrap_pcap([beacon]), received_at=NOW)
         assert len(events) == 1
         event = events[0]
         assert isinstance(event, NetworkSeen)
         assert event.network.bssid == AP_MAC
         assert event.network.ssid is None
-        expected = datetime.fromtimestamp(100, tz=UTC).replace(microsecond=500_000)
+        # ts plausible (año >= 2000, no futuro): se conserva tal cual.
+        expected = datetime.fromtimestamp(1_780_000_000, tz=UTC).replace(
+            microsecond=500_000
+        )
         assert event.timestamp == expected
+
+    def test_unsynced_clock_anchors_to_received(self) -> None:
+        # Bruce sin NTP: reloj a cero -> epoch ~0 (1970), implausible.
+        beacon = _build_mgmt(ssid="SinReloj", ts=(3, 18_000))
+        events = PcapParser().parse(_wrap_pcap([beacon]), received_at=NOW)
+        assert len(events) == 1
+        assert events[0].timestamp == NOW
+
+    def test_future_clock_anchors_to_received(self) -> None:
+        future_epoch = int((NOW + timedelta(hours=48)).timestamp())
+        beacon = _build_mgmt(ssid="Viajero", ts=(future_epoch, 0))
+        events = PcapParser().parse(_wrap_pcap([beacon]), received_at=NOW)
+        assert len(events) == 1
+        assert events[0].timestamp == NOW
 
     def test_ssid_extracted(self) -> None:
         beacon = _build_mgmt(ssid="MiFibra-B6E8", ts=(198, 933_716))
@@ -171,3 +190,11 @@ class TestPcapParserRealFixture:
             data = handle.read()
         events = PcapParser().parse(data)
         assert all(e.timestamp.tzinfo is not None for e in events)
+
+    def test_real_fixture_unsynced_clock_is_anchored(self) -> None:
+        # El captureo real sale con el reloj de Bruce sin NTP (epoch ~0):
+        # los eventos NO deben quedar en 1970, sino anclados a la recepcion.
+        with open(REAL_PCAP[0], "rb") as handle:
+            data = handle.read()
+        events = PcapParser().parse(data)
+        assert all(e.timestamp.year >= 2024 for e in events)

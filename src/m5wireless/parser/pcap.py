@@ -21,7 +21,10 @@ Eventos emitidos (uno por unidad nueva, en orden de aparicion):
 - Frame de datos con payload EAPOL (ethertype ``0x888E``, handshake WPA)
   -> ``ClientAssociated``: cliente = la direccion unicast que NO es el AP.
 
-Los timestamps de los eventos salen del pcap (UTC), no del reloj local.
+Los timestamps de los eventos salen del pcap (UTC), no del reloj local. Si el
+campo del dispositivo no tiene reloj sincronizado (Bruce sin NTP: ts en 1970)
+o esta adelantado mas alla del margen, el timestamp se ancla al momento de
+recepcion (``received_at``, inyectable para tests).
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from __future__ import annotations
 import re
 import struct
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from ..models import (
     Client,
@@ -39,6 +42,7 @@ from ..models import (
     ObservationEvent,
     SourceType,
     normalize_mac,
+    utc_now,
 )
 
 _MAGIC_LE = b"\xd4\xc3\xb2\xa1"
@@ -47,6 +51,8 @@ _LINKTYPE_IEEE_802_11 = 105
 _EAPOL_ETHERTYPE = b"\x88\x8e"
 # LLC/SNAP: AA AA 03 00 00 (00|FF) FF 88 8E.
 _SNAP_PREFIX_RE = re.compile(rb"\xaa\xaa\x03\x00\x00[\x00\xff]\xff")
+# Margin de reloj futuro tolerado antes de anclar al tiempo de recepcion.
+_FUTURE_SKEW_MAX = timedelta(hours=24)
 
 
 class PcapParseError(ValueError):
@@ -71,7 +77,13 @@ def _is_broadcastish(mac: str) -> bool:
 class PcapParser:
     """Convierte los bytes de un pcap Bruce en eventos normalizados."""
 
-    def parse(self, data: bytes, *, source: SourceType = "serial") -> list[ObservationEvent]:
+    def parse(
+        self,
+        data: bytes,
+        *,
+        source: SourceType = "serial",
+        received_at: datetime | None = None,
+    ) -> list[ObservationEvent]:
         offset = _find_magic(data)
         if offset is None:
             raise PcapParseError("magic de pcap no encontrado (d4c3b2a1)")
@@ -84,6 +96,7 @@ class PcapParser:
                 f"linktype no soportado: {linktype} (solo {_LINKTYPE_IEEE_802_11}=IEEE 802.11)"
             )
         cursor = offset + 24
+        received = received_at if received_at is not None else utc_now()
         events: list[ObservationEvent] = []
         # bssid -> ssid de la ultima NetworkSeen emitida (None hasta que aparece).
         seen_networks: dict[str, str | None] = {}
@@ -94,7 +107,7 @@ class PcapParser:
             ts_sec, ts_usec, incl_len = struct.unpack_from(endian + "III", data, cursor)
             payload = data[cursor + 16 : cursor + 16 + incl_len]
             cursor += 16 + incl_len
-            frame = _decode_frame(payload, ts_sec, ts_usec)
+            frame = _decode_frame(payload, ts_sec, ts_usec, received)
             if frame is None:
                 continue
             if frame.frame_type == 0:  # gestion (beacon/probe/auth)
@@ -161,7 +174,19 @@ def _find_magic(data: bytes) -> int | None:
     return None
 
 
-def _decode_frame(payload: bytes, ts_sec: int, ts_usec: int) -> _Frame | None:
+def _sanitize_ts(ts: datetime, received: datetime) -> datetime:
+    """Ancla al tiempo de recepcion si el ts del dispositivo es implausible.
+
+    Bruce sin NTP arranca con el reloj a cero (epoch ~0 -> 1970); un reloj
+    futuro mas alla del margen tampoco se puede creer. Lo que SÍ es
+    plausible (año >= 2000 y no futuro) se conserva tal cual.
+    """
+    if ts.year < 2000 or ts > received + _FUTURE_SKEW_MAX:
+        return received
+    return ts
+
+
+def _decode_frame(payload: bytes, ts_sec: int, ts_usec: int, received: datetime) -> _Frame | None:
     # Cabecera 802.11: frame_control(2) duration(2) RA(6) TA(6) SCA(6).
     if len(payload) < 24:
         return None
@@ -175,6 +200,7 @@ def _decode_frame(payload: bytes, ts_sec: int, ts_usec: int) -> _Frame | None:
     timestamp = datetime.fromtimestamp(ts_sec, tz=UTC)
     if ts_usec:
         timestamp = timestamp.replace(microsecond=ts_usec % 1_000_000)
+    timestamp = _sanitize_ts(timestamp, received)
     return _Frame(timestamp, frame_type, ra, ta, sca, body)
 
 
