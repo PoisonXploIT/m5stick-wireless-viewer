@@ -531,6 +531,11 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
   - `PcapParser` sobre el pcap descargado: 2 eventos `NetworkSeen` (handshake
     real, SSID MiFibra-B6E8). `deauth_0.pcap` (24 B) da 0 eventos, esperado:
     el parser emite eventos de red, no de deauth.
+- `/reboot` validado en hardware: `m5wireless bruce reboot` → rc=0 con corte
+  de transporte tolerado (el firmware hace `ESP.restart()` sin responder);
+  el dispositivo reaparecio en ~90 s y la WebUI se relanzo sola como app de
+  arranque en modo AP (172.0.0.1; `bruce.local` resuelve por mDNS dentro del
+  subred del AP).
 - Pendiente opcional: `cmp` byte-a-byte contra extraccion por serial (requeriria
   conectar el M5Stick por USB en otra sesion; la identidad ya queda cubierta
   por tests con MockTransport).
