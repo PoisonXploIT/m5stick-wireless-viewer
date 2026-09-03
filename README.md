@@ -95,7 +95,11 @@ Bruce no emite un log continuo: se lee su almacenamiento. Dos fuentes:
 m5wireless run --source bruce --port COM7
 
 # WebUI HTTP: sin serial, lista y descarga pcaps por la web del dispositivo.
-m5wireless run --source bruce-web --url http://192.168.4.1 --user admin --password bruce
+m5wireless run --source bruce-web --url http://172.0.0.1 --user admin --password bruce
+
+# Si el dispositivo no tiene tarjeta SD, los pcaps viven en LittleFS:
+m5wireless run --source bruce-web --url http://172.0.0.1 \
+    --user admin --password bruce --fs LittleFS
 ```
 
 Control remoto minimo (mismo `--url/--user/--password`):
@@ -114,7 +118,8 @@ extraidos por serial y comparten el mismo parser.
 
 Los defaults de fabrica del firmware Bruce son publicos:
 
-- AP: SSID `BruceNet`, password `brucenet` (IP `192.168.4.1`).
+- AP: SSID `BruceNet`, password `brucenet`, IP fija `172.0.0.1/24` sin DHCP
+  (el cliente necesita IP estatica, p. ej. `172.0.0.2`).
 - WebUI: usuario `admin`, password `bruce`.
 - El sniffer emite con SSID oculto `BruceSniffer`.
 

@@ -73,6 +73,7 @@ DEFAULTS: dict[str, Any] = {
     "url": None,
     "bruce_user": None,
     "bruce_password": None,
+    "bruce_fs": "SD",
     "splunk_url": None,
     "splunk_token": None,
     "splunk_verify_ssl": True,
@@ -88,13 +89,16 @@ _ENV_MAP: dict[str, str] = {
     "url": "M5W_URL",
     "bruce_user": "M5W_BRUCE_USER",
     "bruce_password": "M5W_BRUCE_PASSWORD",
+    "bruce_fs": "M5W_BRUCE_FS",
     "splunk_url": "M5W_SPLUNK_HEC_URL",
     "splunk_token": "M5W_SPLUNK_HEC_TOKEN",
     "splunk_verify_ssl": "M5W_SPLUNK_VERIFY_SSL",
 }
 
-# IP por defecto del softAP de Bruce (BruceNet) segun la fuente del firmware.
-BRUCE_WEB_DEFAULT_URL = "http://192.168.4.1"
+# IP por defecto del softAP de Bruce (BruceNet). El firmware v1.15 fija
+# softAPConfig en 172.0.0.1/24 (wifi_common.cpp _setupAP); 192.168.4.1 solo
+# aparece en otros modulos (reverseShell, evil portal).
+BRUCE_WEB_DEFAULT_URL = "http://172.0.0.1"
 
 
 def _find_config_file(explicit: str | None) -> Path | None:
@@ -156,13 +160,16 @@ def _resolve_run_config(args: argparse.Namespace) -> dict[str, Any]:
         value = getattr(args, key)
         if value is not None:
             config[key] = value
-    # --user/--password solo existen en `run`; mapean a bruce_user/bruce_password.
+    # --user/--password/--fs solo existen en `run`; mapean a bruce_*/bruce_fs.
     user = getattr(args, "user", None)
     password = getattr(args, "password", None)
     if user is not None:
         config["bruce_user"] = user
     if password is not None:
         config["bruce_password"] = password
+    fs = getattr(args, "fs", None)
+    if fs is not None:
+        config["bruce_fs"] = fs
     # Normalización de tipos (env/toml llegan como str).
     config["baudrate"] = int(config["baudrate"])
     config["web_port"] = int(config["web_port"])
@@ -381,6 +388,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
             url,
             username=cfg["bruce_user"],
             password=cfg["bruce_password"],
+            fs=str(cfg["bruce_fs"]),
         )
         pcap_parser = PcapParser()
         raw_artifacts = getattr(args, "artifacts_dir", None)
@@ -501,6 +509,13 @@ def build_parser() -> argparse.ArgumentParser:
         "--password",
         default=None,
         help="password WebUI (source=bruce-web; fabrica: bruce)",
+    )
+    run_p.add_argument(
+        "--fs",
+        default=None,
+        choices=("SD", "LittleFS"),
+        help="sistema de ficheros donde vive BrucePCAP (solo source=bruce-web; "
+        "defecto SD; usa LittleFS si el dispositivo no tiene tarjeta)",
     )
     run_p.add_argument(
         "--artifacts-dir",

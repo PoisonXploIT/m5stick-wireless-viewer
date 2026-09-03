@@ -202,6 +202,24 @@ def test_run_source_bruce_web_parses() -> None:
     assert args.password == "bruce"
 
 
+def test_run_source_bruce_web_fs_parses() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "--source",
+            "bruce-web",
+            "--fs",
+            "LittleFS",
+        ]
+    )
+    assert args.fs == "LittleFS"
+
+
+def test_bruce_web_default_url_is_softap_ip() -> None:
+    # El softAP del firmware v1.15 fija 172.0.0.1/24 (wifi_common.cpp).
+    assert cli.BRUCE_WEB_DEFAULT_URL == "http://172.0.0.1"
+
+
 def test_bruce_info_against_local_server(
     capsys: pytest.CaptureFixture[str],
 ) -> None:

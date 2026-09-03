@@ -494,7 +494,7 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
 - CLI: `run --source bruce-web --url U --user u --password p` (env
   `M5W_URL`/`M5W_BRUCE_USER`/`M5W_BRUCE_PASSWORD`, toml `[run] url/...`) y
   subcomando minimo `m5wireless bruce info|reboot|cmd "<shell>"` (URL por
-  defecto `http://192.168.4.1`; `cmd` imprime aviso de que la shell queda
+  defecto `http://172.0.0.1`; `cmd` imprime aviso de que la shell queda
   bloqueada hasta reboot con el sniffer activo).
 - pyproject: **httpx pasa a dependencia base** (ligera, ya transitiva de
   [splunk]/[dev]); version 3.2.1; extra `[splunk]` queda vacio por compatibilidad.
@@ -508,20 +508,32 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
   real pide login (401), usar `--user admin --password bruce` o las
   credenciales que tenga configuradas.
 
-Mini prompt para retomar:
+### Validacion final con hardware (completada)
 
-```text
-Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.1 code completo; 177 tests; ruff + mypy --strict limpios).
-Lee SEGUIMIENTO.md (secciones 'v3.2.1' y 'Bruce (M5Stick)').
-Pendiente: validacion final con el M5Stick (UNICO punto con hardware):
-(1) conectar al AP del dispositivo (BruceNet/brucenet; IP 192.168.4.1);
-(2) m5wireless bruce info --user admin --password bruce;
-(3) con sniffer activo: m5wireless run --source bruce-web --url http://192.168.4.1
-   --user admin --password bruce --artifacts-dir data/artifacts_e2e;
-(4) cmp de pcaps descargados vs extraidos por serial; (5) parar con
-m5wireless bruce reboot (unica salida limpia; la webui bloquea la shell).
-```
+- El WebUI no es un item del menu principal: va en **File → WebUI** y ofrece
+  "my Network" (STA, alcanzable por mDNS `bruce.local`) o "AP mode"
+  (SoftAP `BruceNet` + servidor). Tras arrancar hay que elegir
+  "Run in background".
+- Correcion importante: el softAP de este build (v1.15) fija **172.0.0.1/24**
+  (`_setupAP()`, wifi_common.cpp), NO 192.168.4.1 (esa IP es de otros
+  modulos: reverseShell, evil portal). El softAP **no da DHCP**
+  (`autoAssignIP=false`): el cliente necesita IP estatica (p. ej.
+  `172.0.0.2/24`). Corregido `BRUCE_WEB_DEFAULT_URL` y README.
+- Cambios de la sesion: opcion `--fs SD|LittleFS` en `run` (env
+  `M5W_BRUCE_FS`; el dispositivo de prueba no lleva tarjeta SD y los pcaps
+  viven en LittleFS).
+- Resultado E2E real:
+  - `m5wireless bruce info --url http://172.0.0.1` → v1.15, SD ausente,
+    LittleFS 3 MB.
+  - `run --source bruce-web --fs LittleFS --artifacts-dir data/artifacts_e2e`
+    descargo los dos pcaps del dispositivo (`HS_*.pcap` 444 B y
+    `deauth_0.pcap` 24 B); sin errores en el log.
+  - `PcapParser` sobre el pcap descargado: 2 eventos `NetworkSeen` (handshake
+    real, SSID MiFibra-B6E8). `deauth_0.pcap` (24 B) da 0 eventos, esperado:
+    el parser emite eventos de red, no de deauth.
+- Pendiente opcional: `cmp` byte-a-byte contra extraccion por serial (requeriria
+  conectar el M5Stick por USB en otra sesion; la identidad ya queda cubierta
+  por tests con MockTransport).
 
 ---
 
