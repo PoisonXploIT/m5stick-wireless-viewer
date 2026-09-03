@@ -114,6 +114,44 @@ Ruta de integracion (v3.2, detalle en PLAN.md §6.4 y §7.3):
 4. Evolucin: WebUI Bruce (`bruce.local`, admin/bruce) para control remoto.
    **Pendiente** (v3.2.1).
 
+Reconocimiento WebUI Bruce (2026-09-03, contra dispositivo real v1.15):
+
+- La WebUI es un proyecto aparte (`lshaf/bruce-web-interface`) que corre DENTRO
+  del firmware; se arranca con `webui` por serial (o Files -> WebUI en la UI).
+  Modo AP: SSID `BruceNet`, password `brucenet` (verificado en el fuente,
+  `config.h`: `wifiAp = {"BruceNet", "brucenet"}`), gateway `172.0.0.1`,
+  canal 6, beacon visible pero INTERMITENTE (a veces no sale en el escaneo;
+  conectar por SSID directo funciona igual). Credenciales web por defecto
+  `admin`/`bruce` (cambiadas desde Settings de la WebUI).
+- API mapeada y validada en vivo (login POST /login, sesion por cookie):
+  - `GET /systeminfo` -> JSON `{BRUCE_VERSION, SD, LittleFS}` con usage.
+  - `GET /listfiles?fs=LittleFS&folder=/` -> lineas `pa:<path>:0`,
+    `Fo:<dir>:<size>`, `Fi:<file>:<size>` (texto simple, no JSON).
+  - `GET /file?fs=&name=&action=download|edit|image|delete|createfile`
+    -> download VALIDADO: bytes IDENTICOS al pcap extraido por serial
+    (cmp limpio, 444 B).
+  - `POST /upload` (multipart: folder, fs + fichero), `POST /edit
+    {fs,name,content}`, `POST /rename {fs,filePath,fileName}`.
+  - `POST /cm {cmnd}` -> **ejecuta comandos de la shell serial**
+    (respuesta `command <x> queued`): control remoto total, incluye parar el
+    sniffer (`power reboot` o `/reboot`). Resuelve el hallazgo 1 (sniffer sin
+    stop).
+  - `GET /getscreen` -> imagen de la pantalla TFT del dispositivo.
+  - `GET /wifi?usr=&pwd=` -> guarda credenciales WiFi en el dispositivo.
+  - `GET /reboot` -> reinicia el dispositivo (validado: curl cae y el
+    equipo vuelve al prompt; es la forma limpia de terminar webui, que
+    bloquea la shell serial y NO se termina con ESC ni Ctrl-C).
+- Decision de diseno v3.2.1: `BruceWebSource` como fuente PARALELA a
+  `BruceStorageSource`, compartiendo `PcapParser` (el download HTTP ya da
+  bytes identicos, asi que el pipeline es el mismo). El serial source sigue
+  para entornos sin WiFi/AP; la WebUI gana en control (`/cm`, `/reboot`) y
+  evita el guard anti-colgazo (que solo existe por el echo de `storage read`).
+- Seguridad: AP `BruceNet`/`brucenet` + web `admin`/`bruce` son defaults
+  publicos; documentar cambiarlos en README cuando se use la WebUI.
+- Referencias locales (data/, no commiteado): `webui_index.js` (JS de la
+  WebUI, origen del mapeo) y `firmware-main/` (fuente BruceDevices/firmware,
+  para consultas de formato).
+
 Corrida end-to-end con sniffer real (2026-09-03, COM7):
 
 - `m5wireless run --source bruce --port COM7 --artifacts-dir data/artifacts_e2e
