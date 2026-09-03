@@ -86,6 +86,42 @@ token = "..."
 verify_ssl = true
 ```
 
+## Bruce (M5Stick)
+
+Bruce no emite un log continuo: se lee su almacenamiento. Dos fuentes:
+
+```bash
+# Serial: CLI de Bruce + poller de `storage list/read` (requiere el extra [serial]).
+m5wireless run --source bruce --port COM7
+
+# WebUI HTTP: sin serial, lista y descarga pcaps por la web del dispositivo.
+m5wireless run --source bruce-web --url http://192.168.4.1 --user admin --password bruce
+```
+
+Control remoto minimo (mismo `--url/--user/--password`):
+
+```bash
+m5wireless bruce info                 # version y uso de almacenamiento
+m5wireless bruce reboot              # reinicia el dispositivo
+m5wireless bruce cmd "power reboot"   # shell serial remota
+```
+
+Aviso: con el sniffer activo la WebUI bloquea la shell; `bruce reboot` es la
+unica salida limpia. Los pcaps descargados por HTTP son byte-identicos a los
+extraidos por serial y comparten el mismo parser.
+
+### Seguridad antes de usar la WebUI en campo
+
+Los defaults de fabrica del firmware Bruce son publicos:
+
+- AP: SSID `BruceNet`, password `brucenet` (IP `192.168.4.1`).
+- WebUI: usuario `admin`, password `bruce`.
+- El sniffer emite con SSID oculto `BruceSniffer`.
+
+Un dispositivo en modo sniffer + AP con credenciales publicas es accesible
+para cualquiera en la red: cambia el user/pwd de la WebUI y la password del
+AP antes de llevarlo a campo (configuracion desde la shell de Bruce).
+
 ## Splunk HEC
 
 Se activa automaticamente cuando hay URL y token configurados (`M5W_SPLUNK_HEC_URL`

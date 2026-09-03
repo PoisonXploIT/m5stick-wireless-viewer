@@ -4,8 +4,8 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: e2e con sniffer real COMPLETADA (ver seccion 'Bruce (M5Stick)').
-Proximo objetivo: v3.2.1 — WebUI Bruce para control remoto.
+Última actualización: v3.2.1 code completo (BruceWebSource + control remoto,
+177 tests); pendiente validacion final con el M5Stick.
 
 ---
 
@@ -467,6 +467,62 @@ Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol si
 smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualizado al cerrar.
 ```
 
+### v3.2.1 — WebUI Bruce: BruceWebSource + control remoto (code completo; validacion M5Stick pendiente)
+
+- `BruceWebClient` (`src/m5wireless/bruce_api.py`): cliente HTTP de la WebUI,
+  confirmado contra la fuente del firmware (`data/firmware-main/src/core/wifi/webInterface.cpp`).
+  - **Auth obligatoria en todos los endpoints**: cookie `BRUCESESSION` via
+    `POST /login` (form username/password, 302 + Set-Cookie; fallo = 302 a
+    `/failed` sin cookie). Defaults de fabrica: `admin`/`bruce`. El jar de
+    cookies de httpx gestiona la sesion.
+  - Endpoints: `/systeminfo` (JSON), `/listfiles?fs=&folder=` (lineas
+    `pa:<carpeta>:0`, `Fo:<nombre>:0`, `Fi:<nombre>:<tamano legible>` — el
+    tamano es `humanReadableSize`, NO bytes), `/file?...action=download`
+    (bytes), `POST /cm` (form `cmnd`), `GET /reboot` (`ESP.restart()` SIN
+    respuesta: corte de transporte tolerado; 401/4xx se propagan).
+- `BruceWebSource` (`src/m5wireless/source/bruce_web_source.py`): paralela a
+  `BruceStorageSource`, mismo contrato, sin serial.
+  - Poller `/listfiles` por directorio (defaults `/BrucePCAP/handshakes`,
+    `/BrucePCAP`; rutas absolutas como el JS del firmware).
+  - Dedup por `(ruta, size_text)`: el listado no trae mtime ni bytes; un pcap
+    que crece se re-descarga entero cuando cambia el tamano visible (limitacion
+    documentada y fijada en test).
+  - Comparte `PcapParser` tal cual (download HTTP byte-identico al serial,
+    validado con `cmp` en la sesion de reconocimiento).
+  - El canal de lineas de `AbstractSource` queda sin uso (la WebUI no expone
+    consola en vivo; shell solo via `/cm`).
+- CLI: `run --source bruce-web --url U --user u --password p` (env
+  `M5W_URL`/`M5W_BRUCE_USER`/`M5W_BRUCE_PASSWORD`, toml `[run] url/...`) y
+  subcomando minimo `m5wireless bruce info|reboot|cmd "<shell>"` (URL por
+  defecto `http://192.168.4.1`; `cmd` imprime aviso de que la shell queda
+  bloqueada hasta reboot con el sniffer activo).
+- pyproject: **httpx pasa a dependencia base** (ligera, ya transitiva de
+  [splunk]/[dev]); version 3.2.1; extra `[splunk]` queda vacio por compatibilidad.
+- README: seccion "Bruce (M5Stick)" + aviso de seguridad de defaults publicos
+  (AP `BruceNet`/`brucenet`, WebUI `admin`/`bruce`, SSID oculto
+  `BruceSniffer`) — cambiar credenciales antes de usar en campo.
+- Tests: 177. Nuevos `tests/test_bruce_api.py` y `tests/test_bruce_web_source.py`
+  (todo contra `httpx.MockTransport`, sin fake server ni hardware); sumas a
+  `test_cli.py`; packaging fija 3.2.1. ruff + mypy --strict limpios.
+- Nota: en la sesion de reconocimiento los endpoints respondieron; si el M5Stick
+  real pide login (401), usar `--user admin --password bruce` o las
+  credenciales que tenga configuradas.
+
+Mini prompt para retomar:
+
+```text
+Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
+(rama main; v3.2.1 code completo; 177 tests; ruff + mypy --strict limpios).
+Lee SEGUIMIENTO.md (secciones 'v3.2.1' y 'Bruce (M5Stick)').
+Pendiente: validacion final con el M5Stick (UNICO punto con hardware):
+(1) conectar al AP del dispositivo (BruceNet/brucenet; IP 192.168.4.1);
+(2) m5wireless bruce info --user admin --password bruce;
+(3) con sniffer activo: m5wireless run --source bruce-web --url http://192.168.4.1
+   --user admin --password bruce --artifacts-dir data/artifacts_e2e;
+(4) cmp de pcaps descargados vs extraidos por serial; (5) parar con
+m5wireless bruce reboot (unica salida limpia; la webui bloquea la shell).
+```
+
 ---
 
 ## Vision: unificacion de fuentes de hardware hacking (roadmap)
@@ -506,7 +562,7 @@ M5Stick: si. Marauder/Flipper/HackRF/Hound: por confirmar.
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
 - **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
-- **v3.2 Bruce**: publicada como v3.2.0 (parsers consola/pcap + `BruceStorageSource`, 155 tests, validacion COM7 del formato `storage list` incluida). E2E con sniffer real COMPLETADA (ver seccion 'Bruce (M5Stick)'). Pendiente: WebUI Bruce para control remoto.
+- **v3.2 Bruce**: v3.2.0 publicada (parsers consola/pcap + `BruceStorageSource`, E2E serial con sniffer real COMPLETADA). v3.2.1 code completo: `BruceWebClient` + `BruceWebSource` + CLI `bruce info/reboot/cmd` (ver changelog). Pendiente: validacion final con el M5Stick (unica accion con hardware).
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo

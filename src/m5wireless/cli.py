@@ -70,6 +70,9 @@ DEFAULTS: dict[str, Any] = {
     "host": "0.0.0.0",
     "web_port": 8000,
     "db_path": None,
+    "url": None,
+    "bruce_user": None,
+    "bruce_password": None,
     "splunk_url": None,
     "splunk_token": None,
     "splunk_verify_ssl": True,
@@ -82,10 +85,16 @@ _ENV_MAP: dict[str, str] = {
     "host": "M5W_HOST",
     "web_port": "M5W_WEB_PORT",
     "db_path": "M5W_DB_PATH",
+    "url": "M5W_URL",
+    "bruce_user": "M5W_BRUCE_USER",
+    "bruce_password": "M5W_BRUCE_PASSWORD",
     "splunk_url": "M5W_SPLUNK_HEC_URL",
     "splunk_token": "M5W_SPLUNK_HEC_TOKEN",
     "splunk_verify_ssl": "M5W_SPLUNK_VERIFY_SSL",
 }
+
+# IP por defecto del softAP de Bruce (BruceNet) segun la fuente del firmware.
+BRUCE_WEB_DEFAULT_URL = "http://192.168.4.1"
 
 
 def _find_config_file(explicit: str | None) -> Path | None:
@@ -132,11 +141,28 @@ def _resolve_run_config(args: argparse.Namespace) -> dict[str, Any]:
         if value is not None and value != "":
             config[key] = value
     # CLI por último; solo lo que el usuario escribió (default=None en el parser).
-    cli_keys = ("source", "port", "baudrate", "log_path", "firmware", "host", "web_port", "db_path")
+    cli_keys = (
+        "source",
+        "port",
+        "baudrate",
+        "log_path",
+        "firmware",
+        "host",
+        "web_port",
+        "db_path",
+        "url",
+    )
     for key in cli_keys:
         value = getattr(args, key)
         if value is not None:
             config[key] = value
+    # --user/--password solo existen en `run`; mapean a bruce_user/bruce_password.
+    user = getattr(args, "user", None)
+    password = getattr(args, "password", None)
+    if user is not None:
+        config["bruce_user"] = user
+    if password is not None:
+        config["bruce_password"] = password
     # Normalización de tipos (env/toml llegan como str).
     config["baudrate"] = int(config["baudrate"])
     config["web_port"] = int(config["web_port"])
@@ -253,6 +279,33 @@ def _build_splunk_exporter(cfg: dict[str, Any]) -> Any | None:
     return SplunkHecExporter(config)
 
 
+def _cmd_bruce(action: str, args: argparse.Namespace) -> int:
+    """Control remoto minimo de Bruce via WebUI (info/reboot/cmd)."""
+    from .bruce_api import BruceWebClient, BruceWebError
+
+    url = args.url or BRUCE_WEB_DEFAULT_URL
+    try:
+        with BruceWebClient(url, username=args.user, password=args.password) as client:
+            if action == "info":
+                info = client.systeminfo()
+                print(json.dumps(info, indent=2, ensure_ascii=False))
+                return 0
+            if action == "reboot":
+                client.reboot()
+                print(f"reinicio enviado a {url}")
+                return 0
+            reply = client.run_command(args.cmnd)
+            print(reply.strip())
+            print(
+                "aviso: con el sniffer activo la WebUI bloquea la shell; "
+                "la unica salida limpia es 'm5wireless bruce reboot'"
+            )
+            return 0
+    except BruceWebError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+
+
 def _cmd_ports(args: argparse.Namespace) -> int:
     """Lista puertos serie con una pista de que placa hay detras."""
     from .source.serial_source import list_ports, port_hint
@@ -318,6 +371,32 @@ def _cmd_run(args: argparse.Namespace) -> int:
             collector_box["collector"].submit_events(events)
 
         source.observe_files(on_file)
+    elif cfg["source"] == "bruce-web":
+        from .parser.pcap import PcapParser
+        from .source.bruce_source import artifacts_dir as _ensure_dir
+        from .source.bruce_web_source import BruceWebSource
+
+        url = str(cfg["url"])
+        source = BruceWebSource(
+            url,
+            username=cfg["bruce_user"],
+            password=cfg["bruce_password"],
+        )
+        pcap_parser = PcapParser()
+        raw_artifacts = getattr(args, "artifacts_dir", None)
+        out_dir = _ensure_dir(raw_artifacts) if raw_artifacts else None
+
+        def on_file(path: str, data: bytes) -> None:
+            try:
+                events = pcap_parser.parse(data, source="serial")
+            except Exception:
+                logger.exception("no se pudo parsear el pcap %s", path)
+                return
+            if out_dir is not None:
+                (out_dir / Path(path).name).write_bytes(data)
+            collector_box["collector"].submit_events(events)
+
+        source.observe_files(on_file)
     elif cfg["source"] == "serial":
         from .source.serial_source import list_ports, pick_port
 
@@ -365,7 +444,9 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return 3
     db_path = cfg["db_path"]
     store = SQLiteStore(db_path) if db_path else MemoryStore()
-    source_type: SourceType = "serial" if cfg["source"] in ("serial", "bruce") else "file"
+    source_type: SourceType = (
+        "serial" if cfg["source"] in ("serial", "bruce", "bruce-web") else "file"
+    )
     collector = Collector(source, parser, store, source_type=source_type)
     collector_box["collector"] = collector
     exporter = _build_splunk_exporter(cfg)
@@ -392,9 +473,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_p = subparsers.add_parser("run", help="captura + dashboard web (por defecto)")
     run_p.add_argument(
         "--source",
-        choices=("serial", "file", "bruce"),
+        choices=("serial", "file", "bruce", "bruce-web"),
         default=None,
-        help="serial = Marauder/Evil-M5Project en vivo; bruce = CLI Bruce + poller de storage",
+        help=(
+            "serial = Marauder/Evil-M5Project en vivo; bruce = CLI Bruce + poller de "
+            "storage; bruce-web = WebUI HTTP de Bruce (sin serial)"
+        ),
     )
     run_p.add_argument(
         "--demo",
@@ -409,15 +493,45 @@ def build_parser() -> argparse.ArgumentParser:
     run_p.add_argument("--firmware", default=None, help="auto | marauder | evil_m5project")
     run_p.add_argument("--host", default=None)
     run_p.add_argument("--web-port", dest="web_port", type=int, default=None)
+    run_p.add_argument("--url", default=None, help="URL de la WebUI de Bruce (source=bruce-web)")
+    run_p.add_argument(
+        "--user", default=None, help="usuario WebUI (source=bruce-web; fabrica: admin)"
+    )
+    run_p.add_argument(
+        "--password",
+        default=None,
+        help="password WebUI (source=bruce-web; fabrica: bruce)",
+    )
     run_p.add_argument(
         "--artifacts-dir",
         dest="artifacts_dir",
         default=None,
-        help="guardar los pcaps extraidos de Bruce como artifacts (solo source=bruce)",
+        help="guardar los pcaps extraidos de Bruce como artifacts (source=bruce/bruce-web)",
     )
     run_p.add_argument("--db-path", default=None, help="SQLite persistente; sin valor = memoria")
     run_p.add_argument("--config", default=None, help="fichero m5wireless.toml específico")
     run_p.set_defaults(func=_cmd_run)
+
+    bruce_p = subparsers.add_parser(
+        "bruce", help="control remoto de Bruce via WebUI HTTP (info/reboot/cmd)"
+    )
+    bruce_sub = bruce_p.add_subparsers(dest="bruce_action", required=True)
+    for name, help_text in (
+        ("info", "systeminfo: version y uso de almacenamiento"),
+        ("reboot", "reinicia el dispositivo (unica salida limpia del sniffer)"),
+        ("cmd", "ejecuta un comando de la shell serial remota"),
+    ):
+        p = bruce_sub.add_parser(name, help=help_text)
+        p.add_argument(
+            "--url",
+            default=None,
+            help=f"URL de la WebUI (por defecto {BRUCE_WEB_DEFAULT_URL})",
+        )
+        p.add_argument("--user", default=None, help="usuario WebUI (fabrica: admin)")
+        p.add_argument("--password", default=None, help="password WebUI (fabrica: bruce)")
+        if name == "cmd":
+            p.add_argument("cmnd", help="comando de la shell de Bruce")
+        p.set_defaults(func=lambda a, _action=name: _cmd_bruce(_action, a))
 
     ports_p = subparsers.add_parser(
         "ports", help="listar puertos serie y pistas de placa (M5Stick/ESP32)"

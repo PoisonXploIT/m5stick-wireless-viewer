@@ -173,3 +173,65 @@ def test_splunk_exporter_built_only_with_url_and_token(
     cfg["splunk_verify_ssl"] = "false"
     exporter_off = cli._build_splunk_exporter(cfg)
     assert exporter_off is not None and exporter_off.verify is False
+
+
+def test_bruce_subcommand_parses() -> None:
+    args = cli.build_parser().parse_args(["bruce", "reboot", "--url", "http://1.2.3.4"])
+    assert args.url == "http://1.2.3.4"
+    cmd_args = cli.build_parser().parse_args(["bruce", "cmd", "power reboot"])
+    assert cmd_args.cmnd == "power reboot"
+
+
+def test_run_source_bruce_web_parses() -> None:
+    args = cli.build_parser().parse_args(
+        [
+            "run",
+            "--source",
+            "bruce-web",
+            "--url",
+            "http://1.2.3.4",
+            "--user",
+            "admin",
+            "--password",
+            "bruce",
+        ]
+    )
+    assert args.source == "bruce-web"
+    assert args.url == "http://1.2.3.4"
+    assert args.user == "admin"
+    assert args.password == "bruce"
+
+
+def test_bruce_info_against_local_server(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`m5wireless bruce info` de punta a punta contra un servidor local."""
+
+    class Handler(http.server.BaseHTTPRequestHandler):
+        def do_GET(self) -> None:
+            if self.path == "/systeminfo":
+                body = json.dumps({"BRUCE_VERSION": "1.2.3"}).encode()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(body)
+            else:
+                self.send_response(404)
+                self.end_headers()
+
+        def log_message(self, *args: object) -> None:  # silencio.
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    port = server.server_address[1]
+    thread = threading.Thread(
+        target=server.serve_forever, kwargs={"poll_interval": 0.05}, daemon=True
+    )
+    thread.start()
+    try:
+        rc = cli.main(["bruce", "info", "--url", f"http://127.0.0.1:{port}"])
+    finally:
+        server.shutdown()
+        thread.join(timeout=5)
+    assert rc == 0
+    assert "BRUCE_VERSION" in capsys.readouterr().out
