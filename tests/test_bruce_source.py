@@ -1,10 +1,13 @@
 """Tests de BruceStorageSource (poller storage list/read) sin hardware.
 
-El transporte serial es un fake inyectado en ``_open_port`` que reacciona a
-los comandos como lo hace la CLI real de Bruce:
+El transporte serial es un fake inyectado en ``_open_port`` que replica el
+formato real de la CLI de Bruce, validado contra COM7:
 
-- ``storage list <dir>`` -> lineas ``<ruta> <tamano>`` y silencio.
-- ``storage read <path>`` -> echo ``COMMAND: ...\\r\\n`` + bytes crudos.
+- ``storage list <dir>`` -> echo ``COMMAND: ...\\r\\r\\n``, lineas
+  ``<nombre>\\t<tamano>``, subdirectorios como ``<nombre>\\t<DIR>``,
+  prompt ``# `` y silencio. El listado trae NOMBRES RELATIVOS al directorio.
+- ``storage read <ruta>`` -> echo ``COMMAND: ...\\r\\r\\n`` + bytes crudos;
+  si la ruta no existe, solo el echo (sin bytes), como en el hardware real.
 """
 
 from __future__ import annotations
@@ -15,13 +18,35 @@ from m5wireless.source.bruce_source import BruceStorageSource
 
 
 class FakeSerial:
-    """Transporte serial falso con storage en memoria."""
+    """Transporte serial falso fiel al formato real de la CLI de Bruce."""
 
-    def __init__(self, files: dict[str, bytes] | None = None) -> None:
+    def __init__(
+        self, files: dict[str, bytes] | None = None, ghosts: dict[str, int] | None = None
+    ) -> None:
         self.files = dict(files or {})
+        # Rutas que aparecen en el listado pero no devuelven bytes al leerlas.
+        self.ghosts = dict(ghosts or {})
         self._line_queue: list[bytes] = []
         self._pending_raw = b""
         self.written: list[str] = []
+
+    def _list_dir(self, directory: str) -> list[bytes]:
+        lines: list[bytes] = []
+        seen_dirs: set[str] = set()
+        for path in sorted({**self.files, **self.ghosts}):
+            if not path.startswith(directory + "/"):
+                continue
+            rest = path[len(directory) + 1 :]
+            slash = rest.find("/")
+            if slash != -1:
+                subdir = rest[:slash]
+                if subdir not in seen_dirs:
+                    seen_dirs.add(subdir)
+                    lines.append(f"{subdir}\t<DIR>\r\n".encode())
+            else:
+                size = len(self.files.get(path, b"")) or self.ghosts.get(path, 0)
+                lines.append(f"{rest}\t{size}\r\n".encode())
+        return lines
 
     # --- API de transporte (misma forma que serial.Serial, lo que usa la fuente) ---
     def write(self, data: bytes) -> int:
@@ -29,15 +54,17 @@ class FakeSerial:
         self.written.append(text)
         if text.startswith("storage list "):
             directory = text.strip().split(None, 2)[2]
-            for path in self.files:
-                if path == directory or path.startswith(directory + "/"):
-                    size = len(self.files[path])
-                    self._line_queue.append(f"{path} {size}\r\n".encode())
+            self._line_queue.append(f"COMMAND: storage list {directory}\r\r\n".encode())
+            self._line_queue.extend(self._list_dir(directory))
+            self._line_queue.append(b"# ")
         elif text.startswith("storage read "):
             path = text.strip().split(None, 2)[2]
-            data_bytes = self.files.get(path, b"")
-            # Echo COMMAND de longitud variable + bytes crudos.
-            self._pending_raw = f"COMMAND: storage read {path}\r\n".encode() + data_bytes
+            echo = f"COMMAND: storage read {path}\r\r\n".encode()
+            if path in self.files:
+                self._pending_raw = echo + self.files[path] + b"\r\n# "
+            else:
+                # Ruta inexistente: solo echo y prompt, sin bytes.
+                self._pending_raw = echo + b"# "
         return len(data)
 
     def readline(self) -> bytes:
@@ -128,6 +155,16 @@ class TestBruceStorageSource:
         _run(source, lines, files)
         assert list(files) == ["BrucePCAP/handshakes/HS_a.pcap"]
 
+    def test_ghost_file_does_not_hang_or_emit(self) -> None:
+        # Listado con un pcap que no devuelve bytes al leerse (ruta fantasma):
+        # la fuente debe abortar la lectura sin colgar y sin emitir nada.
+        fake = FakeSerial(ghosts={"BrucePCAP/handshakes/HS_gone.pcap": 48})
+        source = _make_source(fake)
+        lines: list[str] = []
+        files: dict[str, list[bytes]] = {}
+        _run(source, lines, files)
+        assert files == {}
+
     def test_status_reports_state(self) -> None:
         fake = FakeSerial()
         source = _make_source(fake)
@@ -137,6 +174,8 @@ class TestBruceStorageSource:
         assert "BrucePCAP/handshakes" in tuple(status["dirs"])
 
     def test_commands_sent_are_storage_list_and_read(self) -> None:
+        # El fake lista nombres relativos y exige ruta completa en `storage read`:
+        # si el source no mapea a ruta completa, el fichero nunca se emite.
         file_bytes = b"\xd4\xc3\xb2\xa1" + b"\x00" * 8
         fake = FakeSerial({"BrucePCAP/handshakes/HS_x.pcap": file_bytes})
         source = _make_source(fake)
@@ -144,4 +183,4 @@ class TestBruceStorageSource:
         files: dict[str, list[bytes]] = {}
         _run(source, lines, files)
         assert any(w.startswith("storage list BrucePCAP/handshakes") for w in fake.written)
-        assert any(w == "storage read BrucePCAP/handshakes/HS_x.pcap\r\n" for w in fake.written)
+        assert "storage read BrucePCAP/handshakes/HS_x.pcap\r\n" in fake.written

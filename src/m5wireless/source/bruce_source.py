@@ -42,7 +42,13 @@ logger = logging.getLogger(__name__)
 PCAP_MAGIC = b"\xd4\xc3\xb2\xa1"
 
 # Entrada de lista: `<nombre> <tamano>` (el nombre no lleva espacios).
+# El listado real de Bruce usa TAB como separador y muestra directorios
+# como ``<nombre>\t<DIR>`` (la regex los descarta por no ser numerico).
 _LISTING_ENTRY_RE = re.compile(r"^(\S+)\s+(\d+)\s*$")
+# Rondas de lectura vacia seguidas antes de abortar una `storage read`:
+# si la ruta no existe el dispositivo solo devuelve el echo y el prompt,
+# sin bytes, y el bucle colgaria para siempre sin esta guarda.
+_IDLE_ABORT_ROUNDS = 3
 
 
 class BruceStorageSource(AbstractSource):
@@ -159,14 +165,17 @@ class BruceStorageSource(AbstractSource):
                 break
             if not name.endswith(self._file_extension):
                 continue
-            last_size = self._seen.get(name)
+            # El listado trae nombres relativos al directorio; `storage read`
+            # exige la ruta completa (validado contra hardware real).
+            path = name if "/" in name else f"{directory}/{name}"
+            last_size = self._seen.get(path)
             if last_size == size:
                 continue  # ya lo leimos con este tamano.
-            data = self._read_file(handle, name, size)
+            data = self._read_file(handle, path, size)
             if data is None:
                 continue
-            self._seen[name] = len(data)
-            self._emit_file(name, data)
+            self._seen[path] = len(data)
+            self._emit_file(path, data)
         if self._running:
             self._state = "conectado"
 
@@ -200,10 +209,16 @@ class BruceStorageSource(AbstractSource):
         handle.write(f"storage read {name}\r\n".encode())
         buffer: bytes = b""
         max_header = 8192
+        idle_rounds = 0
         while self._running and len(buffer) < max_header:
             piece = handle.read(4096)
             if not piece:
+                idle_rounds += 1
+                if idle_rounds >= _IDLE_ABORT_ROUNDS:
+                    logger.warning("sin datos en la respuesta de %s; abortando", name)
+                    return None
                 continue
+            idle_rounds = 0
             buffer += piece
             offset = buffer.find(PCAP_MAGIC)
             if offset != -1:
@@ -212,11 +227,17 @@ class BruceStorageSource(AbstractSource):
             logger.warning("magic de pcap no encontrado en la respuesta de %s", name)
             return None
         offset = buffer.find(PCAP_MAGIC)
-        data: bytes = bytes(buffer[offset:])
+        data: bytes = bytes(buffer[offset : offset + size])
+        idle_rounds = 0
         while self._running and len(data) < size:
             chunk: bytes = handle.read(min(4096, size - len(data)))
             if not chunk:
+                idle_rounds += 1
+                if idle_rounds >= _IDLE_ABORT_ROUNDS:
+                    logger.warning("lectura incompleta de %s; sin mas datos", name)
+                    return None
                 continue
+            idle_rounds = 0
             data += chunk
         if len(data) != size:
             logger.warning("lectura incompleta de %s: %d/%d bytes", name, len(data), size)
