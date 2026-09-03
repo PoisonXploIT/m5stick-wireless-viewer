@@ -536,9 +536,12 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
   el dispositivo reaparecio en ~90 s y la WebUI se relanzo sola como app de
   arranque en modo AP (172.0.0.1; `bruce.local` resuelve por mDNS dentro del
   subred del AP).
-- Pendiente opcional: `cmp` byte-a-byte contra extraccion por serial (requeriria
-  conectar el M5Stick por USB en otra sesion; la identidad ya queda cubierta
-  por tests con MockTransport).
+- `cmp` byte-a-byte HTTP vs serial: COMPLETADO. Con el M5Stick por USB
+  (COM7, CH9102) y la WebUI activa (la CLI serial responde igual),
+  `BruceStorageSource` extraio los dos pcaps de LittleFS; son IDENTICOS a
+  los descargados por HTTP (`cmp` + sha256): `deauth_0.pcap` 24 B y
+  `HS_E051630EB6EA_MiFibra-B6E8.pcap` 444 B. Script de reproduccion:
+  `scripts_e2e/serial_extract.py <COM>` (guarda en `data/artifacts_serial`).
 
 ---
 
