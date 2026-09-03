@@ -151,11 +151,13 @@ Lee SEGUIMIENTO.md (seccion 'Bruce (M5Stick)') y PLAN.md §6.4/§7.3
 (C:/Users/Sammi/m5stick-wireless-viewer-plan).
 Hardware: M5Stick+Bruce en COM7 @ 115200 sin SD (LittleFS OK); ESP32 V6+Marauder
 separado para el stream en vivo.
-Objetivo v3.2.1: WebUI Bruce (bruce.local, admin/bruce) para control remoto.
-NOTA: Bruce v1.15 trae su propio web server (`webui` por serial); decidir si
-integrar ese en vez de construir control desde cero (ver seccion Bruce).
-E2E con sniffer real ya esta hecha (fix de timestamps 1970 incluido,
-pending de release); anotar aqui si aparecen EAPOL sanos.
+Objetivo v3.2.1: `BruceWebSource` (fuente HTTP paralela a BruceStorageSource,
+compartiendo PcapParser) + control remoto via `/cm` y `/reboot`. Reconocimiento
+completo de la API ya esta hecho (ver seccion 'Reconocimiento WebUI Bruce'
+arriba): endpoints, formato listfiles, download validado byte-a-byte.
+Credenciales: AP BruceNet/brucenet, web admin/bruce (defaults; cambiar).
+E2E serial ya esta hecha (fix de timestamps 1970 incluido, pending de
+release); anotar aqui si aparecen EAPOL sanos.
 Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
 emojis, NO commitear data/ (datos reales), SEGUIMIENTO.md actualizado al cerrar.
 ```
