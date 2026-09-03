@@ -469,6 +469,39 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
 
 ---
 
+## Vision: unificacion de fuentes de hardware hacking (roadmap)
+
+El proyecto no es "cliente de Bruce WebUI": es una capa de ingesta unificada para
+datos de hardware hacking, donde Bruce/M5Stick es la primera fuente. El
+denominador comun es el **fichero de captura** (pcap/pcapng/cap), no el
+hardware: cada dispositivo es un adapter `Source` que produce capturas y se
+alimenta al mismo `PcapParser`.
+
+Fuentes objetivo:
+
+- M5Stick/Bruce: pcap por SD serial (v3.2.0) o WebUI HTTP (v3.2.1).
+- Marauder ESP32: pcap en SD + web UI similar; el adapter de BruceWebSource se
+  reutiliza casi sin cambios (`EspSnifferSource` en potencia).
+- Flipper Zero: exporta pcap + logs BLE/RF desde su SD.
+- HackRF: cap de Wireshark (Wi-Fi) o IQ crudo (RF generico). El IQ es un
+  formato distinto al pcap: si entra, parser propio, fuera de `PcapParser`.
+- Hound y otros firmwares ESP32: normalmente pcap en SD; mismo patrón que
+  Marauder con tuning.
+
+Consecuencias de diseño:
+
+1. `BruceWebSource` no se diseña como "cliente de Bruce" sino como la primera
+   instancia de un source HTTP generico de sniffers ESP (listado + download).
+2. Una fuente SD-card genérica (montar/leer tarjeta) cubriría de golpe Bruce,
+   Marauder, Flipper y Hound: candidato natural tras v3.2.1.
+3. El core unificado es `Source -> PcapParser -> eventos`; los adapters por
+target entran como extras opcionales, no en el core.
+
+Hardware disponible para validar contra real (anotar cuando se disponga):
+M5Stick: si. Marauder/Flipper/HackRF/Hound: por confirmar.
+
+---
+
 ## Pendientes / riesgos abiertos
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
