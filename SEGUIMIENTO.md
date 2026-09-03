@@ -4,8 +4,8 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.0.1 completo (commits `d83d823`, `ccbd91b` y cierre
-README/version), claridad de conexion. Proximo objetivo: v3.1.
+Última actualización: v3.2.0 publicada (Bruce firmware support, tag `v3.2.0`).
+Proximo objetivo: v3.2.1 — corrida end-to-end con sniffer real + WebUI Bruce.
 
 ---
 
@@ -102,10 +102,15 @@ Ruta de integracion (v3.2, detalle en PLAN.md §6.4 y §7.3):
    → parsers; worker thread propio (el handle serial vive ahi), callback de
    lineas para la consola + callback de ficheros para el pcap.
    **Hecho**, con inyeccion `_open_port` y test con transporte falso.
-   PENDING HARDWARE: el formato exacto del listado `storage list <dir>` no se
-   capturo en los fixtures (solo "listado con tamanos"); se parsea de forma
-   tolerante `^<ruta> <tamano>$`. Validar contra COM7 real y, si lista solo
-   nombres relativos, mapear a ruta completa antes del `storage read`.
+   VALIDADO CONTRA COM7 REAL (2026-09-03): el listado trae NOMBRES RELATIVOS
+   al directorio con TAB como separador, subdirectorios como
+   `<nombre>\t<DIR>`, echo `COMMAND: ...\r\r\n` y prompt `# `; `storage read`
+   exige ruta COMPLETA (solo basename no devuelve bytes). Fix aplicado:
+   `_poll_directory` mapea a `{dir}/{nombre}` + guarda anti-colgazo por
+   lecturas vacias. Formato replicado en FakeSerial (tests).
+   Nota para capturas nuevas: si aparecen EAPOL sanos en data frames, el
+   path `ClientAssociated` ya esta cubierto con frames sinteticos; anotar
+   aqui cualquier desviacion del fixture actual (RA corrupto).
 4. Evolucin: WebUI Bruce (`bruce.local`, admin/bruce) para control remoto.
    **Pendiente** (v3.2.1).
 
@@ -119,11 +124,10 @@ Lee SEGUIMIENTO.md (seccion 'Bruce (M5Stick)') y PLAN.md §6.4/§7.3
 (C:/Users/Sammi/m5stick-wireless-viewer-plan).
 Hardware: M5Stick+Bruce en COM7 @ 115200 sin SD (LittleFS OK); ESP32 V6+Marauder
 separado para el stream en vivo.
-Objetivo v3.2.1: (1) validacion contra hardware real de BruceStorageSource:
-capturar la salida exacta de `storage list BrucePCAP/handshakes` y ajustar el
-parseo/mapeo de rutas si no es `<ruta> <tamano>`; corrida end-to-end
-`m5w run --source bruce --artifacts-dir` con un sniffer real; (2) WebUI Bruce
-(bruce.local, admin/bruce) para control remoto.
+Objetivo v3.2.1: (1) corrida end-to-end `m5w run --source bruce
+--artifacts-dir` con un sniffer real en COM7 (el formato del listado ya esta
+validado y mapeado); anotar en SEGUIMIENTO si aparecen EAPOL sanos; (2) WebUI
+Bruce (bruce.local, admin/bruce) para control remoto.
 Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
 emojis, NO commitear data/ (datos reales), SEGUIMIENTO.md actualizado al cerrar.
 ```
@@ -401,7 +405,7 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
 - **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
-- **v3.2 Bruce**: implementado (parsers consola/pcap + `BruceStorageSource`, 154 tests). Pendiente: validacion contra COM7 real del formato `storage list` y corrida end-to-end; WebUI Bruce (ver seccion 'Bruce (M5Stick)').
+- **v3.2 Bruce**: publicada como v3.2.0 (parsers consola/pcap + `BruceStorageSource`, 155 tests, validacion COM7 del formato `storage list` incluida). Pendiente: corrida end-to-end con sniffer real y WebUI Bruce (ver seccion 'Bruce (M5Stick)').
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo
