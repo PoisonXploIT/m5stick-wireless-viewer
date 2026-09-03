@@ -4,8 +4,8 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.2.0 publicada (Bruce firmware support, tag `v3.2.0`).
-Proximo objetivo: v3.2.1 — corrida end-to-end con sniffer real + WebUI Bruce.
+Última actualización: e2e con sniffer real COMPLETADA (ver seccion 'Bruce (M5Stick)').
+Proximo objetivo: v3.2.1 — WebUI Bruce para control remoto.
 
 ---
 
@@ -114,6 +114,30 @@ Ruta de integracion (v3.2, detalle en PLAN.md §6.4 y §7.3):
 4. Evolucin: WebUI Bruce (`bruce.local`, admin/bruce) para control remoto.
    **Pendiente** (v3.2.1).
 
+Corrida end-to-end con sniffer real (2026-09-03, COM7):
+
+- `m5wireless run --source bruce --port COM7 --artifacts-dir data/artifacts_e2e
+  --web-port 8000` con el sniffer corriendo en Bruce: poller detecto y leyo
+  `HS_E051630EB6EA_MiFibra-B6E8.pcap` (444 B) y `deauth_0.pcap` (24 B, solo header,
+  sin frames; el parser no emite nada para este, comportamiento correcto).
+- PcapParser emito 2 `NetworkSeen` (ssid=None y upgrade a `MiFibra-B6E8`,
+  BSSID e0:51:63:0e:b6:ea); `/api/networks` y el dashboard lo muestran;
+  artifacts guardados en disco. Sin EAPOL sanos en esta captura: el path
+  `ClientAssociated` sigue cubierto solo con frames sinteticos (sin cambios).
+- Hallazgos de la CLI Bruce v1.15 (`help`):
+  - `sniffer` arranca el raw sniffer (escribe a LittleFS sin SD, igual que con
+    SD). NO es toggle: no existe comando de stop y Ctrl-C no se intercepta
+    (`ERROR: Command not found at ''`). Para parar el sniffer hay que hacer
+    `power reboot` por serial.
+  - Bruce trae su PROPIO web server: `webui - WebUI Webserver start`. Esto
+    cambia el alcance del item pendiente: v3.2.1 puede ser "integrar/usar la
+    WebUI de Bruce" (bruce.local, admin/bruce) en vez de construir control
+    remoto desde cero; decidir al abrir la sesion.
+- Limitacion de datos anotada: los timestamps del pcap de Bruce salen sin
+  reloj sincronizado (epoch ~0), asi que `first_seen`/`last_seen` quedan en
+  1970. Candidato a v3.2.1+: si el ts del frame es implausible, anclar al
+  tiempo de recepcion.
+
 Mini prompt para la sesion de validacion Bruce (v3.2.1):
 
 ```text
@@ -124,10 +148,10 @@ Lee SEGUIMIENTO.md (seccion 'Bruce (M5Stick)') y PLAN.md §6.4/§7.3
 (C:/Users/Sammi/m5stick-wireless-viewer-plan).
 Hardware: M5Stick+Bruce en COM7 @ 115200 sin SD (LittleFS OK); ESP32 V6+Marauder
 separado para el stream en vivo.
-Objetivo v3.2.1: (1) corrida end-to-end `m5w run --source bruce
---artifacts-dir` con un sniffer real en COM7 (el formato del listado ya esta
-validado y mapeado); anotar en SEGUIMIENTO si aparecen EAPOL sanos; (2) WebUI
-Bruce (bruce.local, admin/bruce) para control remoto.
+Objetivo v3.2.1: WebUI Bruce (bruce.local, admin/bruce) para control remoto.
+NOTA: Bruce v1.15 trae su propio web server (`webui` por serial); decidir si
+integrar ese en vez de construir control desde cero (ver seccion Bruce).
+E2E con sniffer real ya esta hecha; anotar aqui si aparecen EAPOL sanos.
 Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
 emojis, NO commitear data/ (datos reales), SEGUIMIENTO.md actualizado al cerrar.
 ```
@@ -405,7 +429,7 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
 - **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
-- **v3.2 Bruce**: publicada como v3.2.0 (parsers consola/pcap + `BruceStorageSource`, 155 tests, validacion COM7 del formato `storage list` incluida). Pendiente: corrida end-to-end con sniffer real y WebUI Bruce (ver seccion 'Bruce (M5Stick)').
+- **v3.2 Bruce**: publicada como v3.2.0 (parsers consola/pcap + `BruceStorageSource`, 155 tests, validacion COM7 del formato `storage list` incluida). E2E con sniffer real COMPLETADA (ver seccion 'Bruce (M5Stick)'). Pendiente: WebUI Bruce para control remoto.
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo
