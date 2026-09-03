@@ -574,7 +574,8 @@ Consecuencias de diseño:
 target entran como extras opcionales, no en el core.
 
 Hardware disponible para validar contra real (anotar cuando se disponga):
-M5Stick: si. Marauder/Flipper/HackRF/Hound: por confirmar.
+M5Stick: si (validado; COM7 CH9102, WebUI en 172.0.0.1, sin SD card →
+LittleFS). Marauder/Flipper/HackRF/Hound: por confirmar.
 
 ---
 
@@ -582,7 +583,7 @@ M5Stick: si. Marauder/Flipper/HackRF/Hound: por confirmar.
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
 - **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
-- **v3.2 Bruce**: v3.2.0 publicada (parsers consola/pcap + `BruceStorageSource`, E2E serial con sniffer real COMPLETADA). v3.2.1 code completo: `BruceWebClient` + `BruceWebSource` + CLI `bruce info/reboot/cmd` (ver changelog). Pendiente: validacion final con el M5Stick (unica accion con hardware).
+- **v3.2 Bruce**: v3.2.0 publicada (parsers consola/pcap + `BruceStorageSource`, E2E serial con sniffer real COMPLETADA). v3.2.1 COMPLETADA y validada en hardware (ver 'Validacion final con hardware'): `BruceWebClient` + `BruceWebSource` + CLI `bruce info/reboot/cmd`, `/reboot` real, cmp HTTP vs serial identico.
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
 ## Convenciones de trabajo
@@ -591,3 +592,40 @@ M5Stick: si. Marauder/Flipper/HackRF/Hound: por confirmar.
 - Cada fase termina con: tests pasando, ruff limpio, mypy --strict limpio, commit, y actualización de este SEGUIMIENTO.md (nueva entrada en changelog con su mini prompt).
 - No inventar parsers sin fixture real.
 - `datetime.now(timezone.utc)` vía `utc_now()`; nunca `utcnow`.
+
+---
+
+## Continuar (sesion siguiente): roadmap de unificacion
+
+v3.2.1 esta COMPLETA y validada en hardware; no queda nada de Bruce pendiente
+salvo higiene del dispositivo (parar WebUI / cambiar credenciales de fabrica
+antes de campo, accion manual en el M5). Siguiente bloque: la capa de ingesta
+unificada (ver 'Vision: unificacion'). Orden propuesto:
+
+1. **Adapter SD-card generico** (`SdCardSource` o similar): leer capturas
+   directamente de la tarjeta (card reader USB) y cubrir de golpe Bruce,
+   Marauder, Flipper Zero y Hound; mismo contrato `Source -> PcapParser`.
+   Validable sin hardware nuevo: cualquier pcap en una SD leida por el PC.
+2. **Adapter WebUI de Marauder** reutilizando `BruceWebClient` (login cookie,
+   listado, download): exige un Marauder real para reconocer endpoints y
+   fixtures; sin dispositivo no se escribe parser (regla: no inventar
+   parsers sin fixture real).
+3. **Parser IQ de HackRF**: separado de `PcapParser` (denominador comun
+   distinto: ficheros IQ, no pcap); exige una muestra IQ real como fixture.
+
+Gating: hardware Marauder/Flipper/HackRF/Hound por confirmar; mientras no
+llegue, el item 1 es el unico que avanza sin mas dispositivos.
+
+Mini prompt para retomar (lanzar en sesion nueva para limpiar contexto):
+
+```text
+Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
+(rama main; v3.2.1 completa y validada en hardware; 179 tests; ruff + mypy
+--strict limpios). Lee SEGUIMIENTO.md: secciones 'v3.2.1', 'Validacion final
+con hardware', 'Vision: unificacion' y 'Continuar'. Tarea del dia: roadmap de
+unificacion — (1) adapter SD-card generico para Bruce/Marauder/Flipper/Hound
+(captura como denominador comun hacia PcapParser); (2) adapter WebUI de
+Marauder reutilizando BruceWebClient (necesita dispositivo real; sin fixture
+real no se escribe parser); (3) parser IQ de HackRF separado de PcapParser
+(necesita muestra IQ real). Commits en español, sin emojis.
+```
