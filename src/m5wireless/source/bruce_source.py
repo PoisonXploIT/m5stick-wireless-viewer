@@ -106,9 +106,7 @@ class BruceStorageSource(AbstractSource):
             attempt += 1
             if not self._running or attempt > self._max_retries:
                 if attempt > self._max_retries:
-                    logger.error(
-                        "agotados los %d reintentos de Bruce", self._max_retries
-                    )
+                    logger.error("agotados los %d reintentos de Bruce", self._max_retries)
                 break
             delay = min(self._base_backoff * (2 ** (attempt - 1)), 30.0)
             await asyncio.sleep(delay)

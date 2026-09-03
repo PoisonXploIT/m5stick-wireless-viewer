@@ -14,7 +14,9 @@ from m5wireless.source import FileSource, SerialSource
 from m5wireless.source.serial_source import PortInfo, pick_port, port_hint
 
 
-def _mk(device: str, description: str = "", vid: str | None = None, pid: str | None = None) -> PortInfo:
+def _mk(
+    device: str, description: str = "", vid: str | None = None, pid: str | None = None
+) -> PortInfo:
     return PortInfo(device=device, description=description, vid=vid, pid=pid)
 
 
@@ -78,9 +80,7 @@ def test_pick_port_first_when_no_hint(
 ) -> None:
     from m5wireless.source import serial_source
 
-    monkeypatch.setattr(
-        serial_source, "list_ports", lambda: [_mk("COM1"), _mk("COM2")]
-    )
+    monkeypatch.setattr(serial_source, "list_ports", lambda: [_mk("COM1"), _mk("COM2")])
     info = pick_port(None)
     assert info is not None and info.device == "COM1"
 

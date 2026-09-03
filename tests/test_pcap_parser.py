@@ -124,9 +124,8 @@ class TestPcapParserSynthetic:
         assert len(events) == 1
 
     def test_command_echo_before_magic_is_tolerated(self) -> None:
-        data = (
-            b"COMMAND: storage read BrucePCAP/handshakes/HS_x.pcap\r\n"
-            + _wrap_pcap([_build_mgmt(ssid="Echo", ts=(1, 0))])
+        data = b"COMMAND: storage read BrucePCAP/handshakes/HS_x.pcap\r\n" + _wrap_pcap(
+            [_build_mgmt(ssid="Echo", ts=(1, 0))]
         )
         events = PcapParser().parse(data)
         assert len(events) == 1

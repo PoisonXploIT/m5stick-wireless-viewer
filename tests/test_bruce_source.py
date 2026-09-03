@@ -37,9 +37,7 @@ class FakeSerial:
             path = text.strip().split(None, 2)[2]
             data_bytes = self.files.get(path, b"")
             # Echo COMMAND de longitud variable + bytes crudos.
-            self._pending_raw = (
-                f"COMMAND: storage read {path}\r\n".encode() + data_bytes
-            )
+            self._pending_raw = f"COMMAND: storage read {path}\r\n".encode() + data_bytes
         return len(data)
 
     def readline(self) -> bytes:
@@ -57,9 +55,7 @@ class FakeSerial:
 
 
 def _make_source(fake: FakeSerial, poll_interval: float = 0.2) -> BruceStorageSource:
-    source = BruceStorageSource(
-        port="FAKE", baudrate=115200, poll_interval=poll_interval
-    )
+    source = BruceStorageSource(port="FAKE", baudrate=115200, poll_interval=poll_interval)
     source._open_port = lambda: fake
     return source
 
@@ -105,9 +101,10 @@ class TestBruceStorageSource:
 
         asyncio.run(scenario())
         assert len(files["BrucePCAP/handshakes/HS_test.pcap"]) == 2
-        assert files["BrucePCAP/handshakes/HS_test.pcap"][1] == fake.files[
-            "BrucePCAP/handshakes/HS_test.pcap"
-        ]
+        assert (
+            files["BrucePCAP/handshakes/HS_test.pcap"][1]
+            == fake.files["BrucePCAP/handshakes/HS_test.pcap"]
+        )
 
     def test_console_lines_are_delivered(self) -> None:
         fake = FakeSerial()
@@ -147,6 +144,4 @@ class TestBruceStorageSource:
         files: dict[str, list[bytes]] = {}
         _run(source, lines, files)
         assert any(w.startswith("storage list BrucePCAP/handshakes") for w in fake.written)
-        assert any(
-            w == "storage read BrucePCAP/handshakes/HS_x.pcap\r\n" for w in fake.written
-        )
+        assert any(w == "storage read BrucePCAP/handshakes/HS_x.pcap\r\n" for w in fake.written)

@@ -54,9 +54,7 @@ def test_status_without_collector(client: TestClient) -> None:
     }
 
 
-def test_status_with_file_collector(
-    seeded_store: MemoryStore, marauder_log_path
-) -> None:
+def test_status_with_file_collector(seeded_store: MemoryStore, marauder_log_path) -> None:
     source = FileSource(marauder_log_path)
     collector = Collector(source, get_parser("marauder"), seeded_store, source_type="file")
     app = create_app(seeded_store, collector=collector)

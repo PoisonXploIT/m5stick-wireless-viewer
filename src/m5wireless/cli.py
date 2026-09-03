@@ -334,9 +334,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
                 for found in ports:
                     print(f"  {found.device}  {found.description}", file=sys.stderr)
             else:
-                print(
-                    "pista: ejecuta 'm5wireless ports' con el dispositivo conectado"
-                )
+                print("pista: ejecuta 'm5wireless ports' con el dispositivo conectado")
             return 2
         from .source.serial_source import port_hint
 
@@ -367,9 +365,7 @@ def _cmd_run(args: argparse.Namespace) -> int:
         return 3
     db_path = cfg["db_path"]
     store = SQLiteStore(db_path) if db_path else MemoryStore()
-    source_type: SourceType = (
-        "serial" if cfg["source"] in ("serial", "bruce") else "file"
-    )
+    source_type: SourceType = "serial" if cfg["source"] in ("serial", "bruce") else "file"
     collector = Collector(source, parser, store, source_type=source_type)
     collector_box["collector"] = collector
     exporter = _build_splunk_exporter(cfg)

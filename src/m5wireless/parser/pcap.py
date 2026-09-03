@@ -71,9 +71,7 @@ def _is_broadcastish(mac: str) -> bool:
 class PcapParser:
     """Convierte los bytes de un pcap Bruce en eventos normalizados."""
 
-    def parse(
-        self, data: bytes, *, source: SourceType = "serial"
-    ) -> list[ObservationEvent]:
+    def parse(self, data: bytes, *, source: SourceType = "serial") -> list[ObservationEvent]:
         offset = _find_magic(data)
         if offset is None:
             raise PcapParseError("magic de pcap no encontrado (d4c3b2a1)")
