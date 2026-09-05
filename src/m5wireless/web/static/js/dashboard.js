@@ -145,6 +145,19 @@
     return rows;
   }
 
+  // Pone el texto en un span.badge dentro de la celda (un <td> con
+  // display:inline-block romperia el layout de la fila).
+  function badgeCell(td, text, cls) {
+    let span = td.firstElementChild;
+    if (!span || span.tagName !== "SPAN") {
+      td.textContent = "";
+      span = document.createElement("span");
+      td.appendChild(span);
+    }
+    span.className = `badge ${cls || ""}`;
+    span.textContent = text;
+  }
+
   function renderRow(v) {
     const tr = document.createElement("tr");
     tr.dataset.bssid = v.bssid;
@@ -160,10 +173,47 @@
       const td = document.createElement("td");
       td.textContent = text;
       if (i === 1) td.className = "mono";
-      if (i === 3 && v.rssi !== null) td.className = `mono ${rssiClass(v.rssi)}`;
+      if (i === 2) badgeCell(td, text);
+      if (i === 3) {
+        td.className = "mono";
+        badgeCell(td, text, v.rssi !== null ? rssiClass(v.rssi) : "");
+      }
+      if (i === 4) td.className = "num";
+      if (i === 5) td.className = "time";
       tr.appendChild(td);
     });
     return tr;
+  }
+
+  // Flash visual al insertar/actualizar una fila en vivo (clase CSS row-flash).
+  function flashRow(tr) {
+    if (!tr) return;
+    tr.classList.remove("row-flash");
+    void tr.offsetWidth; // reinicia la animacion
+    tr.addEventListener("animationend", () => tr.classList.remove("row-flash"), {
+      once: true,
+    });
+    tr.classList.add("row-flash");
+  }
+
+  // Fila de estado vacio: visible solo cuando no hay redes que mostrar.
+  function syncEmptyState() {
+    const empty =
+      tbody.querySelectorAll("tr[data-bssid]").length === 0;
+    let row = tbody.querySelector("#empty-state-row");
+    if (empty && !row) {
+      row = document.createElement("tr");
+      row.id = "empty-state-row";
+      const td = document.createElement("td");
+      td.colSpan = 6;
+      td.className = "empty-state";
+      td.textContent =
+        "Sin redes visibles todavía — conecta una fuente o ajusta los filtros.";
+      row.appendChild(td);
+      tbody.appendChild(row);
+    } else if (!empty && row) {
+      row.remove();
+    }
   }
 
   function renderTable() {
@@ -172,6 +222,7 @@
     for (const v of visibleRows()) frag.appendChild(renderRow(v));
     tbody.appendChild(frag);
     applySortHeaders();
+    syncEmptyState();
   }
 
   // Parchea solo la fila de `bssid` si existe y es visible. Devuelve true si
@@ -182,11 +233,14 @@
     const v = rowValues(networks.get(bssid));
     const tds = tr.children;
     tds[0].textContent = v.ssid || "—";
-    tds[2].textContent = v.channel === null ? "—" : String(v.channel);
-    tds[3].textContent = v.rssi === null ? "—" : `${v.rssi} dBm`;
-    tds[3].className = `mono ${rssiClass(v.rssi)}`;
+    badgeCell(tds[2], v.channel === null ? "—" : String(v.channel));
+    tds[3].className = "mono";
+    badgeCell(tds[3], v.rssi === null ? "—" : `${v.rssi} dBm`, v.rssi !== null ? rssiClass(v.rssi) : "");
     tds[4].textContent = String(v.n_clients);
+    tds[4].className = "num";
     tds[5].textContent = fmtTime(v.last_seen);
+    tds[5].className = "time";
+    flashRow(tr);
     return true;
   }
 
@@ -258,11 +312,17 @@
       const v = rowValues(networks.get(data.bssid));
       const tr = tbody.querySelector(`tr[data-bssid="${CSS.escape(data.bssid)}"]`);
       if (!matchesFilters(v)) {
-        if (tr) tr.remove();
+        if (tr) {
+          tr.remove();
+          syncEmptyState();
+        }
       } else if (tr) {
         patchRow(data.bssid);
       } else {
         renderTable();
+        flashRow(
+          tbody.querySelector(`tr[data-bssid="${CSS.escape(data.bssid)}"]`)
+        );
       }
       appendConsoleLine(data.raw_line);
     } else if (data.event === "client_associated") {
