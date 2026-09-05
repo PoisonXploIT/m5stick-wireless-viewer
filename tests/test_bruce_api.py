@@ -67,7 +67,7 @@ class FakeWebUI:
             for path in sorted(self.files):
                 if not path.startswith(prefix):
                     continue
-                rest = path[len(prefix):]
+                rest = path[len(prefix) :]
                 if "/" in rest:  # subdirectorio: solo la primera parte.
                     lines.append(f"Fo:{rest.split('/')[0]}:0")
                 else:
@@ -125,9 +125,7 @@ def test_login_success_sends_cookie_on_subsequent_requests(
 def test_login_failure_raises_auth_error(fake: FakeWebUI) -> None:
     transport = httpx.MockTransport(fake.handler)
     http_client = httpx.Client(base_url=BASE_URL, transport=transport)
-    bad = BruceWebClient(
-        BASE_URL, username="admin", password="NOESLA", client=http_client
-    )
+    bad = BruceWebClient(BASE_URL, username="admin", password="NOESLA", client=http_client)
     with pytest.raises(BruceWebAuthError):
         bad.systeminfo()
     bad.close()

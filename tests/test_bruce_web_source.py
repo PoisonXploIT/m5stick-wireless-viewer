@@ -41,7 +41,7 @@ class FakeWebUI:
             for path in sorted({**self.size_texts, **self.ghosts}):
                 if not path.startswith(prefix):
                     continue
-                rest = path[len(prefix):]
+                rest = path[len(prefix) :]
                 if "/" in rest:
                     lines.append(f"Fo:{rest.split('/')[0]}:0")
                 else:
@@ -73,9 +73,7 @@ def source(fake: FakeWebUI) -> BruceWebSource:
     return src
 
 
-def test_poll_downloads_new_pcap_once(
-    source: BruceWebSource, fake: FakeWebUI
-) -> None:
+def test_poll_downloads_new_pcap_once(source: BruceWebSource, fake: FakeWebUI) -> None:
     collected: list[tuple[str, bytes]] = []
     source.observe_files(lambda path, data: collected.append((path, data)))
 

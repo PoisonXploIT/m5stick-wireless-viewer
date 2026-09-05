@@ -95,9 +95,7 @@ class TestPcapParserSynthetic:
         assert event.network.bssid == AP_MAC
         assert event.network.ssid is None
         # ts plausible (año >= 2000, no futuro): se conserva tal cual.
-        expected = datetime.fromtimestamp(1_780_000_000, tz=UTC).replace(
-            microsecond=500_000
-        )
+        expected = datetime.fromtimestamp(1_780_000_000, tz=UTC).replace(microsecond=500_000)
         assert event.timestamp == expected
 
     def test_unsynced_clock_anchors_to_received(self) -> None:

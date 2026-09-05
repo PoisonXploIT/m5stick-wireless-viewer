@@ -107,9 +107,7 @@ class BruceWebClient:
         if response.status_code == 401:
             raise BruceWebAuthError("no autenticado (401); revisa usuario y password")
         if response.status_code >= 400:
-            raise BruceWebError(
-                f"HTTP {response.status_code} de la WebUI: {response.text[:200]!r}"
-            )
+            raise BruceWebError(f"HTTP {response.status_code} de la WebUI: {response.text[:200]!r}")
 
     # ---- endpoints ----
     def systeminfo(self) -> dict[str, Any]:
@@ -136,9 +134,7 @@ class BruceWebClient:
     def download_file(self, name: str, *, fs: str = "SD") -> bytes:
         """``GET /file ... action=download``: bytes crudos del fichero."""
         self._ensure_login()
-        response = self._client.get(
-            "/file", params={"fs": fs, "name": name, "action": "download"}
-        )
+        response = self._client.get("/file", params={"fs": fs, "name": name, "action": "download"})
         self._check(response)
         return response.content
 

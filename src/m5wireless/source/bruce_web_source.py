@@ -127,9 +127,7 @@ class BruceWebSource(AbstractSource):
     def _ensure_client(self) -> BruceWebClient:
         if self._client is None:
             if self._http_client is None:
-                self._http_client = httpx.Client(
-                    base_url=self._base_url, timeout=self._timeout
-                )
+                self._http_client = httpx.Client(base_url=self._base_url, timeout=self._timeout)
             self._client = BruceWebClient(
                 self._base_url,
                 username=self._username,
