@@ -6,13 +6,21 @@ metadata consultada aqui es la del pyproject.toml real.
 
 from __future__ import annotations
 
+import tomllib
 from importlib.metadata import entry_points, version
+from pathlib import Path
 
 import m5wireless
 
 
-def test_distribution_version_is_3_2_1() -> None:
-    assert version("m5stick-wireless-viewer") == "3.2.1"
+def _pyproject_version() -> str:
+    pyproject = Path(__file__).resolve().parent.parent / "pyproject.toml"
+    with pyproject.open("rb") as fh:
+        return tomllib.load(fh)["project"]["version"]
+
+
+def test_distribution_version_matches_pyproject() -> None:
+    assert version("m5stick-wireless-viewer") == _pyproject_version()
 
 
 def test_package_version_matches_distribution() -> None:
