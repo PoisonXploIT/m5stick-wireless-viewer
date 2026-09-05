@@ -4,24 +4,29 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.2.1 code completo (BruceWebSource + control remoto,
-177 tests); pendiente validacion final con el M5Stick.
+Última actualización: v3.2.1 completa y validada en hardware (179 tests,
+ruff + mypy --strict limpios). Roadmap actual: seccion 'Continuar (sesion
+siguiente)' — unificacion de fuentes de hardware hacking. Rediseño visual
+del dashboard en working tree (pendiente de release; ver changelog).
 
 ---
 
 ## PROMPT DE RETOMADA (copiar en sesión nueva)
 
+ÚNICA copia vigente del prompt: se actualiza aquí tras cada cierre de fase.
+No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
+'Continuar' derivó y quedó obsoleto apuntando a v3.1).
+
 ```text
-Continua m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.0.0 publicada en GitHub y PyPI; v3.0.1 local: claridad de conexion).
-Lee SEGUIMIENTO.md (repo) y PLAN.md (C:\Users\Sammi\m5stick-wireless-viewer-plan).
-Objetivo: v3.1 — (1) vista de detalle de red: GET /api/networks/{bssid} ya existe,
-falta pagina HTML + link desde la tabla de index.html; (2) Chart.js con evolucion
-RSSI/actividad temporal por red; (3) parsers stubs WiFi Duck / Hash Monster /
-PacketMonitor SOLO con fixtures reales.
-Reglas: ruff + mypy --strict limpios sobre src/m5wireless, commits en espanol sin
-emojis, smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md
-actualizado al cerrar. Venv .venv; 127 tests pasando.
+Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
+(rama main; v3.2.1 completa y validada en hardware; 179 tests; ruff + mypy
+--strict limpios). Lee SEGUIMIENTO.md: secciones 'v3.2.1', 'Validacion final
+con hardware', 'Vision: unificacion' y 'Continuar'. Tarea del dia: roadmap de
+unificacion — (1) adapter SD-card generico para Bruce/Marauder/Flipper/Hound
+(captura como denominador comun hacia PcapParser); (2) adapter WebUI de
+Marauder reutilizando BruceWebClient (necesita dispositivo real; sin fixture
+real no se escribe parser); (3) parser IQ de HackRF separado de PcapParser
+(necesita muestra IQ real). Commits en español, sin emojis.
 ```
 
 ---
@@ -30,18 +35,25 @@ actualizado al cerrar. Venv .venv; 127 tests pasando.
 
 | Item | Estado |
 |------|--------|
-| Fase 0 (preparación) | Parcial: git init local hecho; falta repo remoto GitHub y `git remote add` (acción del usuario) |
+| Fase 0 (preparación) | **Completa** — repo remoto `PoisonXploIT/m5stick-wireless-viewer` (renombrado desde Visualizacion_extendida; historia vieja en rama `legacy-visualizacion-v2`) |
 | Fase 1 (modelos + parsers) | **Completa** — commit `61e1d20` |
 | Fase 2 (stores + sources + collector) | **Completa** — commit `09baa37` |
 | Fase 3 (backend web FastAPI + SSE) | **Completa** — commit `3590475` |
-| Fase 4 (frontend dashboard HTML/CSS/JS + SSE) | **Completa** — commit `87f8097` (vista de detalle pospuesta a v3.1) |
+| Fase 4 (frontend dashboard HTML/CSS/JS + SSE) | **Completa** — commit `87f8097` |
 | Fase 5 (exporters + CLI unificada) | **Completa** — commit `a418dc5` |
-| Fase 6 (calidad/empaquetado: CI/CD) | Parcial: pyproject/Docker listos; falta CI y releases automaticas |
-| Fase 7 (release v3.0.0 + deprecacion) | Pendiente: tag, archivar repo legado, repo remoto |
+| Fase 6 (CI/CD) | **Completa** — CI verde 3.11/3.12, releases automáticas con trusted publishing |
+| Fase 7 (release + deprecación) | **Completa** — v3.0.0 publicada; `wifi-marauder-viewer` archivado con aviso de fusión |
 
-Tests: 127 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+Releases publicadas (GitHub + PyPI): **v3.0.0** (fusión), **v3.0.1** +
+**v3.0.2** (claridad de conexión / fix demo), **v3.2.0** (Bruce serial),
+**v3.2.1** (Bruce WebUI, validada en hardware). La serie 3.1.x se saltó: los
+ítems v3.1 (vista de detalle de red, Chart.js) quedaron desplazados por Bruce;
+decidir en la sesión de unificación si se recuperan (p. ej. como 3.3.0) o se
+descartan.
 
-### v3.0.1 — claridad de conexion (completo, local)
+Tests: 179 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+
+### v3.0.1 — claridad de conexion (publicada en v3.0.1 y v3.0.2)
 
 - `m5wireless ports`: lista puertos serie con VID/PID y pista de placa (M5Stick
   por VID 2E8A, ESP32 CDC/JTAG, CP210x, CH34x). Commits `d83d823`, `ccbd91b`.
@@ -543,6 +555,60 @@ smoke test de navegador (CDP) para cambios de frontend, SEGUIMIENTO.md actualiza
   `HS_E051630EB6EA_MiFibra-B6E8.pcap` 444 B. Script de reproduccion:
   `scripts_e2e/serial_extract.py <COM>` (guarda en `data/artifacts_serial`).
 
+### Rediseño visual del dashboard (pendiente de release, working tree)
+
+Cambios:
+- `style.css` reescrito: paleta oscura con profundidad (gradientes
+  radiales sutiles, sombras suaves, tarjetas con borde de acento
+  superior), topbar sticky con blur, badges tipo pildora para
+  canal/RSSI, barras de canal con gradiente y transicion de anchura,
+  consola con scrollbar estilizada, favicon SVG inline, meta
+  theme-color/description, max-width 1440px, responsive movil
+  (stats 2+full-width, topbar con wrap, pills de estado truncadas con
+  ellipsis) y media query `prefers-reduced-motion`.
+- `index.html`: marca con icono de ondas junto al titulo.
+- `dashboard.js`: `badgeCell()` (pildora en span dentro del td),
+  `flashRow()` (flash al actualizar/insertar fila en vivo) y
+  `syncEmptyState()` (fila "sin redes visibles" cuando la tabla queda
+  vacia; tambien al quitar la ultima fila por filtro SSE).
+- `ruff format` sobre 5 ficheros Python (drift del formateador con
+  ruff 0.16.5; CI exige `ruff format --check`). Sin cambios de
+  comportamiento.
+
+Dos bugs reales encontrados con capturas headless
+(`chrome --headless --screenshot` contra `run --demo`) y corregidos:
+1. `animation: rise ... both` + delay en `.panel` dejaba el panel de
+   canales en `opacity:0` cuando la animacion no llegaba a arrancar
+   (headless, impresion, capturas). Leccion: el contenido NUNCA debe
+   depender de una animacion para ser visible; entrada de paneles
+   eliminada (se conservan flash de filas y transiciones, que son
+   aditivas).
+2. `.badge` (`display:inline-block`) aplicado directamente sobre `<td>`
+   rompia el layout de la tabla (celdas apiladas, filas altas); la
+   pildora ahora vive en un span dentro de la celda.
+
+Validacion: 179 tests, `ruff check`, `ruff format --check` y
+`mypy --strict` limpios; capturas headless escritorio (1440px) y
+movil (390px) verificadas visualmente. Pendiente antes del release:
+smoke test CDP en navegador real (regla del proyecto para cambios de
+frontend) y bump de version (sugerido: 3.2.2).
+
+Siguientes pasos de mejora (UI), por orden de valor/efort:
+1. **Smoke test CDP** del rediseño (carga, SSE en vivo, flash, filtros,
+   ordenacion) — regla del proyecto; bloquea el release 3.2.2.
+2. **Vista de detalle de red**: `/api/networks/{bssid}` ya existe;
+   falta pagina HTML + link en la tabla (item huérfano de v3.1;
+   candidato a 3.3.0).
+3. **Tiempos relativos** en "ultima vista" ("hace 2 min") con el
+   titulo conservando la hora exacta — pure JS, sin backend.
+4. **Selector de fuente en el dashboard**: requiere endpoint
+   `/api/ports` (listar COM con pistas) y, para SD, el `SdCardSource`
+   del roadmap de unificacion; el puerto/SD se fijan al arrancar `run`,
+   asi que el selector implicaria reiniciar la fuente en caliente
+   (alcance mayor del que parece).
+5. **Chart.js** (evolucion RSSI / actividad temporal): solo dentro de
+   la vista de detalle (item 2), no en el indice.
+
 ---
 
 ## Vision: unificacion de fuentes de hardware hacking (roadmap)
@@ -616,16 +682,6 @@ unificada (ver 'Vision: unificacion'). Orden propuesto:
 Gating: hardware Marauder/Flipper/HackRF/Hound por confirmar; mientras no
 llegue, el item 1 es el unico que avanza sin mas dispositivos.
 
-Mini prompt para retomar (lanzar en sesion nueva para limpiar contexto):
-
-```text
-Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.1 completa y validada en hardware; 179 tests; ruff + mypy
---strict limpios). Lee SEGUIMIENTO.md: secciones 'v3.2.1', 'Validacion final
-con hardware', 'Vision: unificacion' y 'Continuar'. Tarea del dia: roadmap de
-unificacion — (1) adapter SD-card generico para Bruce/Marauder/Flipper/Hound
-(captura como denominador comun hacia PcapParser); (2) adapter WebUI de
-Marauder reutilizando BruceWebClient (necesita dispositivo real; sin fixture
-real no se escribe parser); (3) parser IQ de HackRF separado de PcapParser
-(necesita muestra IQ real). Commits en español, sin emojis.
-```
+Mini prompt para retomar: el bloque 'PROMPT DE RETOMADA' del INICIO de este
+documento es la única copia vigente (hasta v3.2.1 había dos y la superior
+derivó, apuntando a v3.1 con 127 tests). Copiar siempre el de arriba.
