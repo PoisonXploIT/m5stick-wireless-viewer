@@ -172,7 +172,16 @@
     cells.forEach((text, i) => {
       const td = document.createElement("td");
       td.textContent = text;
-      if (i === 1) td.className = "mono";
+      if (i === 1) {
+        // BSSID: enlace a la vista de detalle de la red.
+        td.textContent = "";
+        td.className = "mono";
+        const a = document.createElement("a");
+        a.href = `/network?bssid=${encodeURIComponent(v.bssid)}`;
+        a.textContent = text;
+        a.className = "bssid-link";
+        td.appendChild(a);
+      }
       if (i === 2) badgeCell(td, text);
       if (i === 3) {
         td.className = "mono";

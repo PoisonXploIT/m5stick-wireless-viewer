@@ -57,7 +57,7 @@ PyPI). La serie 3.1.x se saltó: los
 decidir en la sesión de unificación si se recuperan (p. ej. como 3.3.0) o se
 descartan.
 
-Tests: 186 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+Tests: 187 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
 
 ### v3.3.0-dev — SdCardSource: SD montada en el PC (unificacion, item 1)
 
@@ -78,6 +78,14 @@ hardware nuevo que tocar.
   `_pcap_file_handler` (antes duplicado en bruce/bruce-web).
 - `SourceType` gana `"sdcard"`: los eventos y `/api/status` lo etiquetan
   como tal (antes caia en `"file"`, enganoso en el widget del dashboard).
+- **Vista de detalle de red** (`/network?bssid=`): info general, clientes
+  asociados, historico (tope 200 filas, mas reciente primero) y grafica de
+  evolucion RSSI en SVG propio sin dependencias (mismo criterio que las
+  barras de canal: sin CDN ni build step, tiene que funcionar en campo sin
+  internet; el item "Chart.js" del backlog queda descartado por eso).
+  Tiempos relativos ("hace 2 min") con hora exacta en title. Polling 5 s
+  sobre `/api/networks/{bssid}` (ya existente); el BSSID de la tabla del
+  indice enlaza a la pagina. Decisión: SVG propio en vez de Chart.js.
 - Validacion e2e: SD falsa con pcap sintetico → `/api/networks` con la red,
   `/api/status` = `sdcard/conectado`, artifact guardado, CSV export con
   `source=sdcard`. 7 tests nuevos (dedup, recursividad, fichero ilegible,
@@ -626,20 +634,22 @@ smoke test CDP en navegador real (regla del proyecto para cambios de
 frontend) y bump de version (sugerido: 3.2.2).
 
 Siguientes pasos de mejora (UI), por orden de valor/efort:
-1. **Smoke test CDP** del rediseño (carga, SSE en vivo, flash, filtros,
-   ordenacion) — regla del proyecto; bloquea el release 3.2.2.
-2. **Vista de detalle de red**: `/api/networks/{bssid}` ya existe;
-   falta pagina HTML + link en la tabla (item huérfano de v3.1;
-   candidato a 3.3.0).
-3. **Tiempos relativos** en "ultima vista" ("hace 2 min") con el
-   titulo conservando la hora exacta — pure JS, sin backend.
+1. **Smoke test CDP** del rediseño + vista detalle (carga, SSE en vivo,
+   flash, filtros, ordenacion, link al detalle, grafica) — regla del
+   proyecto; bloquea el release 3.3.0.
+2. ~~**Vista de detalle de red**~~ **HECHA** (ver changelog 'v3.3.0-dev'):
+   `/network?bssid=` con info, clientes, historico (tope 200 filas) y
+   grafica RSSI en SVG sin dependencias; el BSSID de la tabla enlaza.
+3. **Tiempos relativos** en "ultima vista" del INDICE (ya estan en la
+   vista detalle via `timeAgo()`) — pure JS, sin backend.
 4. **Selector de fuente en el dashboard**: requiere endpoint
    `/api/ports` (listar COM con pistas) y, para SD, el `SdCardSource`
    del roadmap de unificacion; el puerto/SD se fijan al arrancar `run`,
    asi que el selector implicaria reiniciar la fuente en caliente
    (alcance mayor del que parece).
-5. **Chart.js** (evolucion RSSI / actividad temporal): solo dentro de
-   la vista de detalle (item 2), no en el indice.
+5. ~~**Chart.js**~~ descartado: la grafica de detalle es SVG propio
+   (mismo criterio que las barras de canal — sin CDN ni build step, el
+   proyecto debe funcionar en campo sin internet).
 
 ---
 

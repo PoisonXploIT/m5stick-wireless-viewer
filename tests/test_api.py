@@ -80,6 +80,17 @@ def test_root(client: TestClient) -> None:
     assert 'id="conn-status"' in res.text
 
 
+def test_network_page(client: TestClient) -> None:
+    # Vista de detalle: misma pagina para cualquier bssid (el JS lo lee del
+    # query string y consulta /api/networks/{bssid}).
+    res = client.get("/network", params={"bssid": "aa:bb:cc:dd:ee:01"})
+    assert res.status_code == 200
+    assert "text/html" in res.headers["content-type"]
+    assert 'id="history-body"' in res.text
+    assert 'id="rssi-chart"' in res.text
+    assert 'src="/static/js/network.js"' in res.text
+
+
 # ---- health ----
 
 

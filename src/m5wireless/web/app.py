@@ -35,6 +35,7 @@ if TYPE_CHECKING:
 _WEB_DIR = Path(__file__).parent
 _STATIC_DIR = _WEB_DIR / "static"
 _INDEX_HTML = _WEB_DIR / "templates" / "index.html"
+_NETWORK_HTML = _WEB_DIR / "templates" / "network.html"
 
 
 def create_app(
@@ -96,5 +97,10 @@ def create_app(
     def root() -> FileResponse:
         """Dashboard (Fase 4): HTML + assets estaticos, sin build step."""
         return FileResponse(_INDEX_HTML, media_type="text/html")
+
+    @app.get("/network", include_in_schema=False)
+    def network() -> FileResponse:
+        """Vista de detalle de red (clientes, historico, evolucion RSSI)."""
+        return FileResponse(_NETWORK_HTML, media_type="text/html")
 
     return app

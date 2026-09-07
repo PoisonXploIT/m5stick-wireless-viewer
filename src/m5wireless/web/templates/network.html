@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#0a0e15" />
+    <meta
+      name="description"
+      content="Detalle de red: clientes asociados, historico de observaciones y evolucion de RSSI."
+    />
+    <title>m5wireless — detalle de red</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0e15'/%3E%3Cpath d='M6 19a10 10 0 0 1 20 0' stroke='%2358a6ff' stroke-width='2.4' fill='none' stroke-linecap='round'/%3E%3Cpath d='M10.5 19a5.5 5.5 0 0 1 11 0' stroke='%2358a6ff' stroke-width='2.4' fill='none' stroke-linecap='round' opacity='.6'/%3E%3Ccircle cx='16' cy='21' r='2.2' fill='%233fb950'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="/static/css/style.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>
+        <a class="back-link" href="/" title="Volver al dashboard">
+          <span class="brand-mark" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+              <path d="M6 19a10 10 0 0 1 20 0" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+              <path d="M10.5 19a5.5 5.5 0 0 1 11 0" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity="0.6" />
+              <circle cx="16" cy="21" r="2.4" fill="#3fb950" />
+            </svg>
+          </span>
+          m5wireless
+        </a>
+      </h1>
+      <span id="detail-state" class="status status-offline">cargando…</span>
+    </header>
+
+    <main class="detail">
+      <section class="panel" aria-label="Informacion de la red">
+        <h2 id="detail-ssid" class="detail-title">—</h2>
+        <dl class="info-grid">
+          <div class="info-item">
+            <dt>BSSID</dt>
+            <dd id="info-bssid" class="mono">—</dd>
+          </div>
+          <div class="info-item">
+            <dt>Canal</dt>
+            <dd id="info-channel">—</dd>
+          </div>
+          <div class="info-item">
+            <dt>RSSI</dt>
+            <dd id="info-rssi">—</dd>
+          </div>
+          <div class="info-item">
+            <dt>Clientes</dt>
+            <dd id="info-clients">—</dd>
+          </div>
+          <div class="info-item">
+            <dt>Primera vista</dt>
+            <dd id="info-first" class="time">—</dd>
+          </div>
+          <div class="info-item">
+            <dt>Última vista</dt>
+            <dd id="info-last" class="time">—</dd>
+          </div>
+        </dl>
+      </section>
+
+      <section class="panel" aria-label="Evolucion de RSSI">
+        <h2>Evolución RSSI</h2>
+        <div id="rssi-chart" class="chart-wrap"></div>
+        <p id="rssi-empty" class="empty-state" hidden>
+          Sin mediciones de RSSI en el histórico de esta red.
+        </p>
+      </section>
+
+      <section class="panel" aria-label="Clientes asociados">
+        <h2>Clientes asociados</h2>
+        <div class="table-wrap">
+          <table id="clients-table">
+            <thead>
+              <tr>
+                <th scope="col">MAC</th>
+                <th scope="col">Primera vista</th>
+                <th scope="col">Última vista</th>
+              </tr>
+            </thead>
+            <tbody id="clients-body"></tbody>
+          </table>
+        </div>
+        <p id="clients-empty" class="empty-state" hidden>
+          Sin clientes asociados todavía.
+        </p>
+      </section>
+
+      <section class="panel" aria-label="Historico">
+        <h2>Histórico <span id="history-count" class="badge"></span></h2>
+        <div class="table-wrap">
+          <table id="history-table">
+            <thead>
+              <tr>
+                <th scope="col">Hora</th>
+                <th scope="col">Evento</th>
+                <th scope="col">Firmware</th>
+                <th scope="col">Fuente</th>
+                <th scope="col">RSSI</th>
+                <th scope="col">Cliente</th>
+              </tr>
+            </thead>
+            <tbody id="history-body"></tbody>
+          </table>
+        </div>
+        <p id="history-empty" class="empty-state" hidden>
+          Sin observaciones en el histórico.
+        </p>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <a href="/">Dashboard</a>
+      <span aria-hidden="true">·</span>
+      <a href="/api/networks">API de redes</a>
+    </footer>
+
+    <script src="/static/js/network.js" defer></script>
+  </body>
+</html>
