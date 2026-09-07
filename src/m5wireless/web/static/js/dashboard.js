@@ -1,9 +1,11 @@
-// m5wireless dashboard (Fase 4 + Plan UI/UX v2, Hito A): vanilla JS, sin frameworks.
+// m5wireless dashboard (Fase 4 + Plan UI/UX v2, Hitos A-C): vanilla JS, sin frameworks.
 // - SSE en /api/events con reconexion controlada (sin polling).
 // - Actualizacion incremental: cada evento parchea solo la fila afectada;
 //   render completo solo al cambiar filtro/orden.
 // - Filtros en cliente con persistencia (localStorage) y chips de activos.
 // - Sparklines de actividad (10 min) y heatmap de canales por banda, SVG/CSS propios.
+// - Hito C: skeletons de carga, empty states con CTA, toasts de errores,
+//   stats del pipeline (/api/health) y anunciador accesible de la consola.
 
 (() => {
   "use strict";
@@ -16,6 +18,9 @@
   const SPARK_BUCKETS = 30;
   const LIVE_THRESHOLD_MS = 30 * 1000; // "activa ahora" si se vio hace <30 s
   const FILTERS_STORAGE_KEY = "m5wireless.filters";
+  const SKELETON_ROWS = 6;
+  const TOAST_MS = 5000;
+  const TOAST_DEDUPE_MS = 8000; // anti-spam: mismo mensaje dentro de esta ventana se descarta
 
   // ---- estado ----
   const networks = new Map(); // bssid -> {bssid, ssid, channel, rssi, last_seen}
@@ -26,6 +31,7 @@
   let sortDir = "desc";
   let es = null; // EventSource actual
   let reconnectTimer = null;
+  let hadDisconnect = false; // para anunciar la reconexion una sola vez
 
   // ---- DOM ----
   const $ = (id) => document.getElementById(id);
@@ -65,6 +71,34 @@
     const res = await fetch(url);
     if (!res.ok) throw new Error(`${url} -> ${res.status}`);
     return res.json();
+  }
+
+  // ---- toasts (C2): errores y avisos que antes eran silencio total ----
+
+  let lastToast = { msg: "", t: 0 };
+
+  function showToast(message, type = "info") {
+    const now = Date.now();
+    if (message === lastToast.msg && now - lastToast.t < TOAST_DEDUPE_MS) return;
+    lastToast = { msg: message, t: now };
+    const box = $("toasts");
+    if (!box) return;
+    const toast = document.createElement("div");
+    toast.className = `toast toast-${type}`;
+    toast.textContent = message;
+    box.appendChild(toast);
+    while (box.children.length > 4) box.firstElementChild.remove();
+    setTimeout(() => {
+      toast.classList.add("toast-out");
+      toast.addEventListener("animationend", () => toast.remove(), { once: true });
+    }, TOAST_MS);
+  }
+
+  // Anunciador accesible (C3): la consola en si es aria-live=off (alta
+  // frecuencia); los cambios de estado se anuncian por aqui.
+  function announce(msg) {
+    const el = $("console-announcer");
+    if (el) el.textContent = msg;
   }
 
   // ---- estado: upserts ----
@@ -159,6 +193,7 @@
     pauseBtn.addEventListener("click", () => {
       consolePaused = !consolePaused;
       pauseLabel.textContent = consolePaused ? "Reanudar" : "Pausar";
+      announce(consolePaused ? "Consola en pausa" : "Consola reanudada");
       if (!consolePaused) resumeConsole();
     });
     $("console-clear").addEventListener("click", () => {
@@ -168,14 +203,17 @@
       const badge = $("console-pending");
       badge.hidden = true;
       badge.textContent = "";
+      announce("Consola vaciada");
     });
     $("console-copy").addEventListener("click", async () => {
       const text = consoleLines.map((l) => l.text).join("\n");
       if (!text) return;
       try {
         await navigator.clipboard.writeText(text);
+        showToast("Consola copiada al portapapeles", "info");
       } catch (_err) {
         // portapapeles no disponible (http no-localhost o permiso denegado).
+        showToast("No se pudo copiar: permiso denegado", "warn");
       }
     });
   }
@@ -336,24 +374,101 @@
     tr.classList.add("row-flash");
   }
 
-  // Fila de estado vacio: visible solo cuando no hay redes que mostrar.
+  // Icono SVG reutilizable para los empty states (antena sin senal).
+  function emptyIcon() {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "34");
+    svg.setAttribute("height", "34");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "1.6");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("class", "empty-icon");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML =
+      '<path d="M5 12.5a10 10 0 0 1 14 0"/><path d="M8.5 16a5.5 5.5 0 0 1 7 0"/><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none"/><path d="M3 3l18 18" stroke="#e5534b"/>';
+    return svg;
+  }
+
+  // Fila de estado vacio (C1): dos variantes —
+  //  - sin datos: CTA con el comando para arrancar una fuente;
+  //  - con datos pero filtros que lo ocultan todo: boton limpiar filtros.
   function syncEmptyState() {
-    const empty =
-      tbody.querySelectorAll("tr[data-bssid]").length === 0;
-    let row = tbody.querySelector("#empty-state-row");
-    if (empty && !row) {
-      row = document.createElement("tr");
-      row.id = "empty-state-row";
-      const td = document.createElement("td");
-      td.colSpan = 6;
-      td.className = "empty-state";
-      td.textContent =
-        "Sin redes visibles todavía — conecta una fuente o ajusta los filtros.";
-      row.appendChild(td);
-      tbody.appendChild(row);
-    } else if (!empty && row) {
-      row.remove();
+    const existing = tbody.querySelector("#empty-state-row");
+    if (existing) existing.remove();
+    if (tbody.querySelectorAll("tr[data-bssid]").length > 0) return;
+
+    const row = document.createElement("tr");
+    row.id = "empty-state-row";
+    const td = document.createElement("td");
+    td.colSpan = 6;
+    td.className = "empty-state";
+
+    const box = document.createElement("div");
+    box.className = "empty-box";
+    box.appendChild(emptyIcon());
+    const title = document.createElement("p");
+    title.className = "empty-title";
+    const hint = document.createElement("p");
+    hint.className = "empty-hint";
+
+    if (networks.size === 0) {
+      title.textContent = "Aún no hay redes visibles";
+      hint.textContent = "Arranca una fuente de captura para empezar:";
+      const code = document.createElement("code");
+      code.className = "empty-cmd mono";
+      code.textContent = "m5wireless run --demo";
+      const hint2 = document.createElement("p");
+      hint2.className = "empty-hint";
+      hint2.textContent = "o con hardware: m5wireless run --source serial --port COM4";
+      box.append(title, hint, code, hint2);
+    } else {
+      title.textContent = "Ninguna red coincide con los filtros";
+      hint.textContent = `${networks.size} red(es) oculta(s) por los filtros activos.`;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "btn btn-sm";
+      btn.textContent = "Limpiar filtros";
+      btn.addEventListener("click", clearFilters);
+      box.append(title, hint, btn);
     }
+    td.appendChild(box);
+    row.appendChild(td);
+    tbody.appendChild(row);
+  }
+
+  function clearFilters() {
+    filterText.value = "";
+    filterChannel.value = "";
+    filterRssi.value = "";
+    filterClients.checked = false;
+    onFilterChanged();
+  }
+
+  // Skeletons de carga inicial (C1): filas placeholder mientras llega la
+  // primera respuesta del API. El contenido NUNCA depende de animaciones.
+  function showSkeletons() {
+    const frag = document.createDocumentFragment();
+    for (let i = 0; i < SKELETON_ROWS; i++) {
+      const tr = document.createElement("tr");
+      tr.className = "skeleton-row";
+      for (let c = 0; c < 6; c++) {
+        const td = document.createElement("td");
+        const bar = document.createElement("span");
+        bar.className = "skeleton-bar";
+        // Anchos variados para que no parezca una tabla de mamposteria.
+        bar.style.width = `${55 + ((i * 7 + c * 13) % 40)}%`;
+        td.appendChild(bar);
+        tr.appendChild(td);
+      }
+      frag.appendChild(tr);
+    }
+    tbody.appendChild(frag);
+  }
+
+  function hideSkeletons() {
+    for (const tr of tbody.querySelectorAll("tr.skeleton-row")) tr.remove();
   }
 
   function renderTable() {
@@ -430,7 +545,7 @@
 
   function updateCounters() {
     $("count-networks").textContent = String(networks.size);
-    $("count-clients").textContent = clients.size;
+    $("count-clients").textContent = String(clients.size);
     renderSpark($("spark-networks"), activity.networks);
     renderSpark($("spark-clients"), activity.clients);
   }
@@ -555,7 +670,7 @@
     }
   }
 
-  // ---- estado de conexion (polling ligero de /api/status) ----
+  // ---- estado de conexion (polling ligero) + stats del pipeline (C4) ----
 
   async function refreshConnStatus() {
     let data;
@@ -564,6 +679,7 @@
     } catch (_err) {
       connStatusEl.textContent = "fuente: sin datos";
       connStatusEl.className = "status status-offline";
+      showToast("No se pudo consultar el estado de la fuente", "warn");
       return;
     }
     if (!data.source || !data.state) {
@@ -582,6 +698,29 @@
     connStatusEl.className = `status ${ok ? "status-online" : "status-warn"}`;
   }
 
+  // Stats del collector expuestos por /api/health (lineas/eventos/errores).
+  async function refreshPipelineStats() {
+    let h;
+    try {
+      h = await fetchJSON("/api/health");
+    } catch (_err) {
+      // Caida del backend: ya la anuncia refreshConnStatus o el toast SSE.
+      return;
+    }
+    $("meta-source").textContent = h.source || h.store || "—";
+    const c = h.collector;
+    $("stat-lines").textContent = c ? String(c.lines) : "—";
+    $("stat-events").textContent = c ? String(c.events) : "—";
+    const errs = $("stat-errors");
+    errs.textContent = c ? String(c.errors) : "—";
+    errs.classList.toggle("stat-errors-warn", Boolean(c) && c.errors > 0);
+  }
+
+  function refreshStatus() {
+    refreshConnStatus();
+    refreshPipelineStats();
+  }
+
   function setSseStatus(online) {
     statusEl.textContent = online ? "SSE: conectado" : "SSE: desconectado";
     statusEl.className = `status ${online ? "status-online" : "status-offline"}`;
@@ -590,10 +729,16 @@
   function connectSSE() {
     if (es) es.close();
     es = new EventSource("/api/events");
-    es.onopen = () => setSseStatus(true);
+    es.onopen = () => {
+      if (hadDisconnect) showToast("Conexión en vivo restablecida", "info");
+      hadDisconnect = false;
+      setSseStatus(true);
+    };
     es.onerror = () => {
       // Cierre explicito + reconexion controlada (no dependemos del auto-retry).
+      hadDisconnect = true;
       setSseStatus(false);
+      showToast("Conexión en vivo perdida — reconectando…", "warn");
       const current = es;
       es = null;
       current.close();
@@ -724,6 +869,7 @@
     bindControls();
     bindConsoleControls();
     renderChips();
+    showSkeletons();
     try {
       const [nets, cls, cons] = await Promise.all([
         fetchJSON("/api/networks"),
@@ -741,15 +887,13 @@
       }
     } catch (err) {
       console.error("carga inicial fallida:", err);
+      showToast(`Carga inicial fallida: ${err.message}`, "error");
+    } finally {
+      hideSkeletons();
     }
-    fetchJSON("/api/health")
-      .then((h) => {
-        $("meta-source").textContent = h.source || h.store || "—";
-      })
-      .catch(() => {});
 
-    refreshConnStatus();
-    setInterval(refreshConnStatus, STATUS_POLL_MS);
+    refreshStatus();
+    setInterval(refreshStatus, STATUS_POLL_MS);
 
     renderTable();
     updateCounters();

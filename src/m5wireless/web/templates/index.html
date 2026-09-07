@@ -69,6 +69,20 @@
         </div>
         <span class="stat-value stat-value-small" id="meta-source">—</span>
       </div>
+      <div class="stat">
+        <div class="stat-top">
+          <span class="stat-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M3 12h4l2 6 4-14 2 8h6" />
+            </svg>
+          </span>
+          <span class="stat-label">pipeline</span>
+        </div>
+        <div class="stat-pipeline mono" title="Líneas leídas · eventos parseados · errores">
+          <span id="stat-lines">—</span><span class="stat-sep">·</span><span id="stat-events">—</span><span class="stat-sep">·</span><span id="stat-errors">—</span>
+        </div>
+        <span class="stat-sub">líneas · eventos · errores</span>
+      </div>
     </section>
 
     <section class="filters" aria-label="Filtros">
@@ -178,6 +192,9 @@
         Health
       </a>
     </footer>
+
+    <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
+    <span id="console-announcer" class="sr-only" aria-live="polite"></span>
 
     <script src="/static/js/dashboard.js" defer></script>
   </body>

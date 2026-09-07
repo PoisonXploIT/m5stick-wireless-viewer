@@ -57,9 +57,7 @@ class _NoCacheMiddleware:
         self._app = app
 
     def _applies(self, path: str) -> bool:
-        return path in _NO_CACHE_PATHS or any(
-            path.startswith(p) for p in _NO_CACHE_PREFIXES
-        )
+        return path in _NO_CACHE_PATHS or any(path.startswith(p) for p in _NO_CACHE_PREFIXES)
 
     async def __call__(self, scope: object, receive: object, send: object) -> None:
         if not isinstance(scope, dict) or scope.get("type") != "http":

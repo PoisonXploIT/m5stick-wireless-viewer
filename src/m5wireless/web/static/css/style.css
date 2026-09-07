@@ -141,7 +141,7 @@ body {
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   padding: 16px 20px 0;
 }
@@ -1080,4 +1080,164 @@ td.time {
 #activity-empty {
   text-align: left;
   padding: 12px 4px;
+}
+
+/* ---- Hito C: stats del pipeline, toasts, skeletons, empty states ---- */
+
+.stat-pipeline {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 6px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.stat-sep {
+  color: var(--text-faint);
+}
+
+.stat-errors-warn {
+  color: var(--rssi-bad);
+}
+
+.stat-sub {
+  display: block;
+  margin-top: 2px;
+  color: var(--text-faint);
+  font-size: 0.72rem;
+}
+
+/* skeletons de carga inicial (C1): barras shimmer, contenido de respaldo */
+.skeleton-bar {
+  display: block;
+  height: 12px;
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, var(--panel-3) 25%, var(--border-strong) 50%, var(--panel-3) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+}
+
+tr.skeleton-row td {
+  padding: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* empty states con CTA (C1) */
+.empty-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 36px 20px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.empty-icon {
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+
+.empty-title {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.empty-hint {
+  margin: 0;
+  font-size: 0.82rem;
+}
+
+.empty-cmd {
+  margin: 4px 0 0;
+  padding: 8px 14px;
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  color: var(--accent);
+  font-size: 0.85rem;
+  user-select: all;
+}
+
+/* toasts (C2): pila fija abajo a la derecha */
+.toasts {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(360px, calc(100vw - 32px));
+}
+
+.toast {
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  box-shadow: var(--shadow-lg);
+  font-size: 0.84rem;
+  animation: toast-in 0.18s ease-out;
+}
+
+.toast-info {
+  border-left: 3px solid var(--accent);
+}
+
+.toast-warn {
+  border-left: 3px solid var(--rssi-mid);
+}
+
+.toast-error {
+  border-left: 3px solid var(--rssi-bad);
+}
+
+.toast-out {
+  animation: toast-out 0.25s ease-in forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* utilidad de accesibilidad: texto solo para lectores de pantalla (C3) */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
 }
