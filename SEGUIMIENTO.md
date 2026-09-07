@@ -4,11 +4,11 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: Hitos A y B del Plan UI/UX v2 en main (5e3b775, ebc7329,
-60cab65; 187 tests, ruff + mypy --strict limpios; commits locales sin
-empujar: 5e3b775, 3f3b95e, ebc7329, 60cab65).
-Roadmap actual: Hito C del Plan UI/UX v2 (pulido UX + calidad + release
-3.3.0), seccion 'Plan UI/UX v2'. Items gated por hardware en seccion
+Última actualización: Plan UI/UX v2 COMPLETO (Hitos A, B y C en main:
+5e3b775..60cab65 ya empujados + 38f14e9 local; 187 tests, ruff +
+mypy --strict limpios).
+Roadmap actual: release 3.3.0 (bump pyproject.toml, reinstalar editable en
+.venv, tag v3.3.0, push). Items gated por hardware en seccion
 'Continuar': Marauder WebUI e IQ HackRF.
 
 ---
@@ -21,18 +21,19 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; Hitos A y B del Plan UI/UX v2 en main; 187 tests; ruff +
-mypy --strict limpios). Lee SEGUIMIENTO.md: seccion 'Plan UI/UX v2' — toca
-Hito C (skeletons, empty states con CTA + SVG propio, toasts para errores
-SSE/API, aria-live, stats del pipeline via /api/health, smoke CDP final,
-release 3.3.0 con bump en pyproject.toml + reinstalar editable en .venv).
-Restricciones: sin build step ni CDN/webfonts, vanilla JS/CSS,
-mobile-first, enterprise limpio, mono solo para datos. Commits en español,
-sin emojis. Nota capturas: chrome --headless=old (sin virtual-time-budget,
+(rama main; Plan UI/UX v2 completo: Hitos A+B+C; 187 tests; ruff +
+mypy --strict limpios). Lee SEGUIMIENTO.md. Siguiente paso: release
+3.3.0 — bump de version en pyproject.toml, reinstalar el paquete en
+editable en .venv (si no, el test de packaging lee la version vieja),
+pytest + ruff + mypy, commit, push main, y tag v3.3.0 con confirmacion
+del usuario (dispara release.yml -> GitHub Release + PyPI via trusted
+publishing). Backlog tras el release: items gated por hardware en
+'Continuar' (Marauder WebUI, IQ HackRF). Restricciones frontend: sin
+build step ni CDN/webfonts, vanilla JS/CSS. Commits en español, sin
+emojis. Nota capturas: chrome --headless=old (sin virtual-time-budget,
 el SSE cuelga el screenshot). Infra de smoke CDP reutilizable en
-C:\tmp_smoke\cdp_smoke.py y cdp_debug.py (imprime excepciones JS;
-requiere websocket-client, instalado en el venv; Chrome con
---remote-allow-origins=*).
+C:\tmp_smoke\cdp_smoke.py, cdp_debug.py y cdp_hitoC.py (este último
+ejercita empty state de filtros; requiere websocket-client en el venv).
 ```
 
 ---
@@ -763,18 +764,32 @@ expone stats del collector; `/api/status` existe).
 - Decisiones: consola ya no es `<pre>` con textContent (líneas DOM para
   color/badges); histograma en SVG propio, sin deps.
 
-### Hito C — Pulido UX + calidad (~1 sesion)
+### Hito C — Pulido UX + calidad (~1 sesion) — COMPLETO
 
-- C1. **Estados**: skeleton loaders en carga inicial; empty states con SVG
-  propio y CTA (comando de ejemplo para conectar fuente).
-- C2. **Toasts** para errores SSE/API/desconexion (hoy silencio total).
-- C3. **Accesibilidad**: focus-visible global, aria-live en contadores y
-  consola, contraste AA.
-- C4. **Estado del pipeline**: stats del collector (lineas/eventos/errores)
-  visibles en el dashboard (reutiliza /api/health).
-- C5. **Validacion**: smoke CDP real (carga, SSE, flash, filtros, detalle,
-  consola), capturas before/after escritorio 1440px y movil 390px.
-- C6. **Release**: bump 3.3.0, tag, PyPI.
+- C1. **Estados**: skeletons de carga inicial (6 filas shimmer, eliminadas
+  en `finally` de la carga); empty states con SVG propio y dos variantes:
+  sin datos → CTA con comando (`m5wireless run --demo` + hint serial);
+  filtros que ocultan todo → botón "Limpiar filtros".
+- C2. **Toasts**: pila fija abajo-derecha (info/warn/error, entrada/salida
+  animadas, tope 4, dedupe 8 s del mismo mensaje). Disparadores: pérdida
+  y restablecimiento de SSE, fallo de carga inicial, fallo de
+  `/api/status`, copia de consola denegada.
+- C3. **Accesibilidad**: anunciador `sr-only` con `aria-live` para la
+  consola (pausa/reanuda/vacía — la consola en sí sigue `aria-live=off`
+  por alta frecuencia); `role="status"` en la pila de toasts;
+  focus-visible ya global desde el Hito A.
+- C4. **Pipeline**: 4ª tarjeta KPI (líneas · eventos · errores del
+  collector vía `/api/health`, polling 5 s compartido con `/api/status`);
+  errores > 0 en rojo. `meta-source` también migra a ese poll.
+- C5. **Validacion**: 187 tests, ruff + format + mypy --strict limpios;
+  smoke CDP sin excepciones JS (3 filas, stats 11·8·0, consola 8 líneas,
+  empty state de filtros con botón limpiar funcional) y capturas
+  escritorio 1440px + móvil 390px verificadas.
+- C6. **Release**: bump a 3.3.0 pendiente de cierre (ver prompt).
+- Decisiones: dedupe de toasts en 8 s (el poll de 5 s no puede spammear);
+  el contenido nunca depende de la animación del shimmer (regla del
+  proyecto); grid de KPIs pasa a 4 columnas (móvil: pipeline a ancho
+  completo vía `:last-child`).
 
 Estimacion: 3 sesiones. Orden de los hitos es negociable; no empezar el
 siguiente sin cerrar el anterior (tests + smoke del alcance del hito).
