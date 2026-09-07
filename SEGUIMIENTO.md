@@ -4,9 +4,10 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.2.2 publicada (rediseño visual del dashboard, 179
-tests, ruff + mypy --strict limpios). Roadmap actual: seccion 'Continuar
-(sesion siguiente)' — unificacion de fuentes de hardware hacking.
+Última actualización: v3.2.3 publicada (rediseño visual del dashboard + fix de
+version unica desde metadata; 179 tests, ruff + mypy --strict limpios).
+Roadmap actual: seccion 'Continuar (sesion siguiente)' — unificacion de
+fuentes de hardware hacking.
 
 ---
 
@@ -18,7 +19,7 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.2 publicada — rediseño visual del dashboard; 179 tests; ruff +
+(rama main; v3.2.3 publicada — rediseño visual del dashboard; 179 tests; ruff +
 mypy --strict limpios). Lee SEGUIMIENTO.md: secciones 'v3.2.1', 'Validacion final
 con hardware', 'Vision: unificacion' y 'Continuar'. Tarea del dia: roadmap de
 unificacion — (1) adapter SD-card generico para Bruce/Marauder/Flipper/Hound
@@ -45,8 +46,10 @@ real no se escribe parser); (3) parser IQ de HackRF separado de PcapParser
 
 Releases publicadas (GitHub + PyPI): **v3.0.0** (fusión), **v3.0.1** +
 **v3.0.2** (claridad de conexión / fix demo), **v3.2.0** (Bruce serial),
-**v3.2.1** (Bruce WebUI, validada en hardware), **v3.2.2** (rediseño visual
-del dashboard). La serie 3.1.x se saltó: los
+**v3.2.1** (Bruce WebUI, validada en hardware), **v3.2.3** (rediseño visual
+del dashboard + version unica desde metadata; v3.2.2 se salto: la wheel
+publicada llevaba `__version__` hardcodeada 3.2.1, no se puede re-subir a
+PyPI). La serie 3.1.x se saltó: los
 ítems v3.1 (vista de detalle de red, Chart.js) quedaron desplazados por Bruce;
 decidir en la sesión de unificación si se recuperan (p. ej. como 3.3.0) o se
 descartan.
