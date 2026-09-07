@@ -608,6 +608,29 @@ td.time {
 
 /* ---- consola serial ---- */
 
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.panel-head h2 {
+  margin: 0;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 0.76rem;
+  gap: 5px;
+}
+
 .console-panel {
   display: flex;
   flex-direction: column;
@@ -621,7 +644,7 @@ td.time {
   border-radius: 8px;
   font-family: var(--mono);
   font-size: 0.75rem;
-  line-height: 1.45;
+  line-height: 1.5;
   color: #c9d1d9;
   height: 340px;
   overflow-y: auto;
@@ -638,6 +661,36 @@ td.time {
 .console::-webkit-scrollbar-thumb {
   background: var(--border);
   border-radius: 4px;
+}
+
+/* linea de consola: timestamp tenue + texto coloreado por tipo de evento */
+.console-line {
+  display: flex;
+  gap: 8px;
+}
+
+.console-line .ts {
+  color: var(--text-faint);
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.console-line .txt-net {
+  color: #c9d1d9;
+}
+
+.console-line .txt-client {
+  color: var(--rssi-good);
+}
+
+.console-line .txt-status {
+  color: var(--rssi-mid);
+}
+
+/* badge de lineas en espera mientras la consola esta pausada */
+#console-pending {
+  padding: 0 7px;
+  font-size: 0.7rem;
 }
 
 /* ---- distribucion por canal: heatmap por banda (A7) ---- */
@@ -900,4 +953,131 @@ td.time {
   margin: 0.5rem 0 0;
   color: var(--text-dim);
   font-size: 0.9rem;
+}
+
+/* ---- Hito B: breadcrumb, graficas interactivas y badges de evento ---- */
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  min-width: 0;
+}
+
+.crumb-sep {
+  color: var(--text-faint);
+}
+
+.crumb-current {
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40vw;
+}
+
+.info-bssid-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.chart-wrap {
+  position: relative;
+}
+
+.chart-dot {
+  fill: var(--accent);
+  stroke: var(--bg);
+  stroke-width: 1;
+}
+
+.chart-crosshair {
+  stroke: var(--text-faint);
+  stroke-width: 1;
+  stroke-dasharray: 3 3;
+}
+
+.chart-bar {
+  fill: var(--accent);
+  opacity: 0.75;
+}
+
+.chart-tooltip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: var(--panel-3);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 5px 9px;
+  font-size: 0.75rem;
+  font-family: var(--mono);
+  color: var(--text-dim);
+  pointer-events: none;
+  box-shadow: var(--shadow);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.chart-tooltip .tt-strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+/* badges de tipo de evento en el historico */
+.event-badge.ev-net {
+  color: var(--accent);
+  background: var(--accent-soft);
+  border-color: rgba(76, 141, 255, 0.35);
+}
+
+.event-badge.ev-client {
+  color: var(--rssi-good);
+  background: rgba(52, 192, 124, 0.12);
+  border-color: rgba(52, 192, 124, 0.3);
+}
+
+.event-badge.ev-other {
+  color: var(--rssi-mid);
+  background: rgba(217, 160, 33, 0.12);
+  border-color: rgba(217, 160, 33, 0.3);
+}
+
+/* tablas de la vista detalle: mismo tratamiento que la tabla de redes */
+#clients-table,
+#history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+#clients-table th,
+#clients-table td,
+#history-table th,
+#history-table td {
+  text-align: left;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+#clients-table thead th,
+#history-table thead th {
+  color: var(--text-dim);
+  font-weight: 600;
+  font-size: 0.74rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* el empty state centrado de la tabla de redes no aplica a los paneles */
+#clients-empty,
+#history-empty,
+#rssi-empty,
+#activity-empty {
+  text-align: left;
+  padding: 12px 4px;
 }

@@ -118,8 +118,31 @@
       </section>
 
       <section class="panel console-panel" aria-label="Consola serial">
-        <h2>Consola serial</h2>
-        <pre id="console" class="console"></pre>
+        <div class="panel-head">
+          <h2>Consola serial</h2>
+          <div class="panel-actions">
+            <button type="button" id="console-pause" class="btn btn-sm" title="Pausar el streaming">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="M9 5v14M15 5v14" />
+              </svg>
+              <span id="console-pause-label">Pausar</span>
+              <span id="console-pending" class="badge" hidden></span>
+            </button>
+            <button type="button" id="console-clear" class="btn btn-sm" title="Vaciar la consola">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M4 7h16M9 7V5h6v2M6 7l1 13h10l1-13" />
+              </svg>
+              Limpiar
+            </button>
+            <button type="button" id="console-copy" class="btn btn-sm" title="Copiar el contenido">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+              </svg>
+              Copiar
+            </button>
+          </div>
+        </div>
+        <div id="console" class="console" aria-live="off"></div>
       </section>
 
       <section class="panel channels-panel" aria-label="Distribución por canal">

@@ -20,7 +20,6 @@
   // ---- estado ----
   const networks = new Map(); // bssid -> {bssid, ssid, channel, rssi, last_seen}
   const clients = new Map(); // mac -> {mac, bssid}
-  const consoleLines = [];
   // Ventana de actividad para las sparklines: timestamps de eventos recientes.
   const activity = { networks: [], clients: [] };
   let sortKey = "last_seen";
@@ -99,17 +98,86 @@
   }
 
   // ---- consola ----
+  // Entradas tipadas: {ts, type, text}. En pausa, las nuevas lineas se
+  // acumulan en `pendingLines` y el badge las cuenta (B1).
+  const consoleLines = [];
+  const pendingLines = [];
+  let consolePaused = false;
+  const consoleTypeClass = {
+    network_seen: "txt-net",
+    client_associated: "txt-client",
+    status: "txt-status",
+  };
 
-  function appendConsoleLine(line) {
-    if (!line) return;
+  function appendConsoleLine(entry) {
+    if (!entry || !entry.text) return;
+    if (consolePaused) {
+      pendingLines.push(entry);
+      const badge = $("console-pending");
+      badge.textContent = String(pendingLines.length);
+      badge.hidden = false;
+      return;
+    }
+    renderConsoleLine(entry);
+  }
+
+  function renderConsoleLine(entry) {
     const nearBottom =
       consoleEl.scrollHeight - consoleEl.scrollTop - consoleEl.clientHeight < 40;
-    consoleLines.push(line);
+    consoleLines.push(entry);
     if (consoleLines.length > MAX_CONSOLE_LINES) {
-      consoleLines.splice(0, consoleLines.length - MAX_CONSOLE_LINES);
+      consoleLines.shift();
+      if (consoleEl.firstElementChild) consoleEl.firstElementChild.remove();
     }
-    consoleEl.textContent = consoleLines.join("\n");
+    consoleEl.appendChild(consoleLineEl(entry));
     if (nearBottom) consoleEl.scrollTop = consoleEl.scrollHeight;
+  }
+
+  function consoleLineEl(entry) {
+    const div = document.createElement("div");
+    div.className = "console-line";
+    const ts = document.createElement("span");
+    ts.className = "ts";
+    ts.textContent = entry.ts ? fmtTime(entry.ts) : "--:--:--";
+    const txt = document.createElement("span");
+    txt.className = consoleTypeClass[entry.type] || "txt-net";
+    txt.textContent = entry.text;
+    div.append(ts, txt);
+    return div;
+  }
+
+  function resumeConsole() {
+    while (pendingLines.length > 0) renderConsoleLine(pendingLines.shift());
+    const badge = $("console-pending");
+    badge.hidden = true;
+    badge.textContent = "";
+  }
+
+  function bindConsoleControls() {
+    const pauseBtn = $("console-pause");
+    const pauseLabel = $("console-pause-label");
+    pauseBtn.addEventListener("click", () => {
+      consolePaused = !consolePaused;
+      pauseLabel.textContent = consolePaused ? "Reanudar" : "Pausar";
+      if (!consolePaused) resumeConsole();
+    });
+    $("console-clear").addEventListener("click", () => {
+      consoleLines.length = 0;
+      pendingLines.length = 0;
+      consoleEl.textContent = "";
+      const badge = $("console-pending");
+      badge.hidden = true;
+      badge.textContent = "";
+    });
+    $("console-copy").addEventListener("click", async () => {
+      const text = consoleLines.map((l) => l.text).join("\n");
+      if (!text) return;
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (_err) {
+        // portapapeles no disponible (http no-localhost o permiso denegado).
+      }
+    });
   }
 
   // ---- tabla: render completo e incremental ----
@@ -462,13 +530,28 @@
           tbody.querySelector(`tr[data-bssid="${CSS.escape(data.bssid)}"]`)
         );
       }
-      appendConsoleLine(data.raw_line);
+      appendConsoleLine({
+        ts: data.timestamp || data.last_seen,
+        type: "network_seen",
+        text: data.raw_line,
+      });
     } else if (data.event === "client_associated") {
       upsertClient(data);
       trackActivity(activity.clients, data.timestamp || data.last_seen);
       updateCounters();
       if (data.bssid) patchRow(data.bssid); // refresca n_clients de la red
-      appendConsoleLine(data.raw_line);
+      appendConsoleLine({
+        ts: data.timestamp || data.last_seen,
+        type: "client_associated",
+        text: data.raw_line,
+      });
+    } else {
+      // status u otros eventos del ciclo de vida del firmware.
+      appendConsoleLine({
+        ts: data.timestamp,
+        type: "status",
+        text: data.raw_line,
+      });
     }
   }
 
@@ -541,6 +624,8 @@
           channel: filterChannel.value,
           rssi: filterRssi.value,
           clientsOnly: filterClients.checked,
+          sortKey,
+          sortDir,
         })
       );
     } catch (_err) {
@@ -557,6 +642,9 @@
       if (typeof saved.channel === "string") filterChannel.value = saved.channel;
       if (typeof saved.rssi === "string") filterRssi.value = saved.rssi;
       if (typeof saved.clientsOnly === "boolean") filterClients.checked = saved.clientsOnly;
+      // Ordenacion tambien se restaura (volver del detalle, recarga).
+      if (typeof saved.sortKey === "string") sortKey = saved.sortKey;
+      if (saved.sortDir === "asc" || saved.sortDir === "desc") sortDir = saved.sortDir;
     } catch (_err) {
       // valor corrupto: se ignoran los filtros guardados.
     }
@@ -623,6 +711,7 @@
           sortKey = key;
           sortDir = key === "last_seen" || key === "rssi" ? "desc" : "asc";
         }
+        saveFilters();
         renderTable();
       });
     }
@@ -633,6 +722,7 @@
   async function init() {
     loadFilters();
     bindControls();
+    bindConsoleControls();
     renderChips();
     try {
       const [nets, cls, cons] = await Promise.all([
@@ -642,7 +732,13 @@
       ]);
       for (const n of nets.networks) upsertNetwork(n);
       for (const c of cls) upsertClient(c);
-      for (const line of cons.lines) appendConsoleLine(line.raw_line);
+      for (const line of cons.lines) {
+        appendConsoleLine({
+          ts: line.timestamp,
+          type: line.event_type,
+          text: line.raw_line,
+        });
+      }
     } catch (err) {
       console.error("carga inicial fallida:", err);
     }

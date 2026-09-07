@@ -17,10 +17,10 @@
   </head>
   <body>
     <header class="topbar">
-      <h1>
+      <nav class="breadcrumb" aria-label="Migas de pan">
         <a class="back-link" href="/" title="Volver al dashboard">
           <span class="brand-mark" aria-hidden="true">
-            <svg width="20" height="20" viewBox="0 0 32 32" fill="none">
+            <svg width="18" height="18" viewBox="0 0 32 32" fill="none">
               <path d="M6 19a10 10 0 0 1 20 0" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
               <path d="M10.5 19a5.5 5.5 0 0 1 11 0" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" opacity="0.6" />
               <circle cx="16" cy="21" r="2.4" fill="#3fb950" />
@@ -28,7 +28,9 @@
           </span>
           m5wireless
         </a>
-      </h1>
+        <span class="crumb-sep" aria-hidden="true">/</span>
+        <span id="crumb-ssid" class="crumb-current">red</span>
+      </nav>
       <span id="detail-state" class="status status-offline">cargando…</span>
     </header>
 
@@ -38,7 +40,15 @@
         <dl class="info-grid">
           <div class="info-item">
             <dt>BSSID</dt>
-            <dd id="info-bssid" class="mono">—</dd>
+            <dd class="info-bssid-row">
+              <span id="info-bssid" class="mono">—</span>
+              <button type="button" id="copy-bssid" class="btn btn-sm" title="Copiar BSSID">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <rect x="8" y="8" width="12" height="12" rx="2" /><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2" />
+                </svg>
+                Copiar
+              </button>
+            </dd>
           </div>
           <div class="info-item">
             <dt>Canal</dt>
@@ -68,6 +78,14 @@
         <div id="rssi-chart" class="chart-wrap"></div>
         <p id="rssi-empty" class="empty-state" hidden>
           Sin mediciones de RSSI en el histórico de esta red.
+        </p>
+      </section>
+
+      <section class="panel" aria-label="Actividad temporal">
+        <h2>Actividad temporal</h2>
+        <div id="activity-chart" class="chart-wrap"></div>
+        <p id="activity-empty" class="empty-state" hidden>
+          Sin actividad registrada en el histórico.
         </p>
       </section>
 
