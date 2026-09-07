@@ -112,7 +112,26 @@ m5wireless bruce cmd "power reboot"   # shell serial remota
 
 Aviso: con el sniffer activo la WebUI bloquea la shell; `bruce reboot` es la
 unica salida limpia. Los pcaps descargados por HTTP son byte-identicos a los
-extraidos por serial y comparten el mismo parser.
+extraidos por serial.
+
+## Tarjeta SD montada en el PC (Bruce, Marauder, Flipper, Hound)
+
+El denominador comun de estos firmwares es el fichero de captura en la SD.
+Con un lector USB, la tarjeta se monta como un directorio del PC y la fuente
+`sdcard` escanea las capturas nuevas (`.pcap`/`.cap`) hacia el mismo parser,
+sin depender del dispositivo encendido:
+
+```bash
+# E:/ es la SD montada; escaneo recursivo con dedup por size+mtime.
+m5wireless run --source sdcard --sdcard-dir E:/
+
+# Guardar copia de cada captura procesada:
+m5wireless run --source sdcard --sdcard-dir E:/ --artifacts-dir data/artifacts
+```
+
+El directorio tambien se puede fijar con `M5W_SDCARD_DIR` o
+`m5wireless.toml` (`[run] sdcard_dir`). Los eventos se etiquetan como
+`sdcard` en el dashboard y los exportes.
 
 ### Seguridad antes de usar la WebUI en campo
 

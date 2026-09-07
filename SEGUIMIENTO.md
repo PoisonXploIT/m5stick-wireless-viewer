@@ -4,10 +4,11 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.2.3 publicada (rediseño visual del dashboard + fix de
-version unica desde metadata; 179 tests, ruff + mypy --strict limpios).
+Última actualización: v3.2.3 publicada + SdCardSource en main (item 1 del
+roadmap de unificacion; 186 tests, ruff + mypy --strict limpios).
 Roadmap actual: seccion 'Continuar (sesion siguiente)' — unificacion de
-fuentes de hardware hacking.
+fuentes; quedan los items 2 (Marauder WebUI) y 3 (HackRF IQ), ambos gated
+por hardware/muestra real.
 
 ---
 
@@ -19,14 +20,16 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.3 publicada — rediseño visual del dashboard; 179 tests; ruff +
-mypy --strict limpios). Lee SEGUIMIENTO.md: secciones 'v3.2.1', 'Validacion final
-con hardware', 'Vision: unificacion' y 'Continuar'. Tarea del dia: roadmap de
-unificacion — (1) adapter SD-card generico para Bruce/Marauder/Flipper/Hound
-(captura como denominador comun hacia PcapParser); (2) adapter WebUI de
-Marauder reutilizando BruceWebClient (necesita dispositivo real; sin fixture
-real no se escribe parser); (3) parser IQ de HackRF separado de PcapParser
-(necesita muestra IQ real). Commits en español, sin emojis.
+(rama main; v3.2.3 publicada + SdCardSource en main — item 1 de unificacion;
+186 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md: secciones
+'v3.3.0-dev' (SdCardSource), 'Vision: unificacion' y 'Continuar'. Tarea del
+dia: items 2 y 3 del roadmap de unificacion, AMBOS GATED por hardware — (2)
+adapter WebUI de Marauder reutilizando BruceWebClient (necesita dispositivo
+real; sin fixture real no se escribe parser); (3) parser IQ de HackRF
+separado de PcapParser (necesita muestra IQ real). Mientras no haya
+hardware: opciones no gated = UI (vista de detalle de red con
+/api/networks/{bssid}, tiempos relativos) o publicar 3.3.0 con SdCardSource.
+Commits en español, sin emojis.
 ```
 
 ---
@@ -54,7 +57,33 @@ PyPI). La serie 3.1.x se saltó: los
 decidir en la sesión de unificación si se recuperan (p. ej. como 3.3.0) o se
 descartan.
 
-Tests: 179 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+Tests: 186 pasando. Lint: ruff limpio. Tipos: mypy --strict limpio (sobre `src/m5wireless`).
+
+### v3.3.0-dev — SdCardSource: SD montada en el PC (unificacion, item 1)
+
+Primer adapter del roadmap de unificacion: la SD del dispositivo (Bruce,
+Marauder, Flipper, Hound) se lee montada como directorio del anfitrion, sin
+hardware nuevo que tocar.
+
+- `source/sd_card_source.py`: poller recursivo (`.pcap`/`.cap`; `.pcapng`
+  ignorado a proposito — `PcapParser` solo soporta pcap clasico linktype 105).
+  Dedup por `(ruta, size, mtime_ns)`: el filesystem local da bytes y mtime
+  exactos, a diferencia del listado HTTP de la WebUI. Un pcap que crece se
+  re-lee entero; el store absorbe los eventos repetidos. Errores de lectura
+  (tarjeta extraida) no matan la fuente: se cuentan y se reintentan.
+  Canal de lineas sin uso (la SD no tiene consola), mismo contrato
+  `observe_files` que las fuentes Bruce.
+- CLI: `run --source sdcard --sdcard-dir <ruta>` (+ `M5W_SDCARD_DIR`,
+  `m5wireless.toml` [run] sdcard_dir). Handler de pcaps extraido a
+  `_pcap_file_handler` (antes duplicado en bruce/bruce-web).
+- `SourceType` gana `"sdcard"`: los eventos y `/api/status` lo etiquetan
+  como tal (antes caia en `"file"`, enganoso en el widget del dashboard).
+- Validacion e2e: SD falsa con pcap sintetico → `/api/networks` con la red,
+  `/api/status` = `sdcard/conectado`, artifact guardado, CSV export con
+  `source=sdcard`. 7 tests nuevos (dedup, recursividad, fichero ilegible,
+  root ausente, e2e a store).
+- Pendiente de release (bump 3.3.0 cuando se cierre el bloque de
+  unificacion o antes si se quiere publicar ya).
 
 ### v3.0.1 — claridad de conexion (publicada en v3.0.1 y v3.0.2)
 
@@ -666,15 +695,9 @@ LittleFS). Marauder/Flipper/HackRF/Hound: por confirmar.
 
 ## Continuar (sesion siguiente): roadmap de unificacion
 
-v3.2.1 esta COMPLETA y validada en hardware; no queda nada de Bruce pendiente
-salvo higiene del dispositivo (parar WebUI / cambiar credenciales de fabrica
-antes de campo, accion manual en el M5). Siguiente bloque: la capa de ingesta
-unificada (ver 'Vision: unificacion'). Orden propuesto:
+Item 1 COMPLETO en main (ver changelog 'v3.3.0-dev': `SdCardSource` +
+`--source sdcard`). Quedan:
 
-1. **Adapter SD-card generico** (`SdCardSource` o similar): leer capturas
-   directamente de la tarjeta (card reader USB) y cubrir de golpe Bruce,
-   Marauder, Flipper Zero y Hound; mismo contrato `Source -> PcapParser`.
-   Validable sin hardware nuevo: cualquier pcap en una SD leida por el PC.
 2. **Adapter WebUI de Marauder** reutilizando `BruceWebClient` (login cookie,
    listado, download): exige un Marauder real para reconocer endpoints y
    fixtures; sin dispositivo no se escribe parser (regla: no inventar
@@ -682,8 +705,10 @@ unificada (ver 'Vision: unificacion'). Orden propuesto:
 3. **Parser IQ de HackRF**: separado de `PcapParser` (denominador comun
    distinto: ficheros IQ, no pcap); exige una muestra IQ real como fixture.
 
-Gating: hardware Marauder/Flipper/HackRF/Hound por confirmar; mientras no
-llegue, el item 1 es el unico que avanza sin mas dispositivos.
+Gating: hardware Marauder/Flipper/HackRF/Hound por confirmar; los items 2 y
+3 NO avanzan sin el. Mientras tanto, trabajo no gated: vista de detalle de
+red (`/api/networks/{bssid}` ya existe), tiempos relativos en el dashboard,
+o release 3.3.0 con SdCardSource (bump + tag).
 
 Mini prompt para retomar: el bloque 'PROMPT DE RETOMADA' del INICIO de este
 documento es la única copia vigente (hasta v3.2.1 había dos y la superior

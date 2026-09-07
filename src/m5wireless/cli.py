@@ -32,7 +32,7 @@ import time
 import tomllib
 import urllib.error
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -74,6 +74,7 @@ DEFAULTS: dict[str, Any] = {
     "bruce_user": None,
     "bruce_password": None,
     "bruce_fs": "SD",
+    "sdcard_dir": None,
     "splunk_url": None,
     "splunk_token": None,
     "splunk_verify_ssl": True,
@@ -90,6 +91,7 @@ _ENV_MAP: dict[str, str] = {
     "bruce_user": "M5W_BRUCE_USER",
     "bruce_password": "M5W_BRUCE_PASSWORD",
     "bruce_fs": "M5W_BRUCE_FS",
+    "sdcard_dir": "M5W_SDCARD_DIR",
     "splunk_url": "M5W_SPLUNK_HEC_URL",
     "splunk_token": "M5W_SPLUNK_HEC_TOKEN",
     "splunk_verify_ssl": "M5W_SPLUNK_VERIFY_SSL",
@@ -155,6 +157,7 @@ def _resolve_run_config(args: argparse.Namespace) -> dict[str, Any]:
         "web_port",
         "db_path",
         "url",
+        "sdcard_dir",
     )
     for key in cli_keys:
         value = getattr(args, key)
@@ -340,6 +343,32 @@ def _cmd_ports(args: argparse.Namespace) -> int:
     return 0
 
 
+def _pcap_file_handler(
+    collector_box: dict[str, Any], out_dir: Path | None, *, source_tag: SourceType
+) -> Callable[[str, bytes], None]:
+    """Callback de ficheros pcap compartido por las fuentes binarias.
+
+    Parsea los bytes con ``PcapParser``, guarda el artifact si hay directorio
+    y entrega los eventos al colector (que existe cuando el poller arranca:
+    ``run`` se invoca despues de construirlo).
+    """
+    from .parser.pcap import PcapParser
+
+    pcap_parser = PcapParser()
+
+    def on_file(path: str, data: bytes) -> None:
+        try:
+            events = pcap_parser.parse(data, source=source_tag)
+        except Exception:
+            logger.exception("no se pudo parsear el pcap %s", path)
+            return
+        if out_dir is not None:
+            (out_dir / Path(path).name).write_bytes(data)
+        collector_box["collector"].submit_events(events)
+
+    return on_file
+
+
 def _cmd_run(args: argparse.Namespace) -> int:
     cfg = _resolve_run_config(args)
     if getattr(args, "demo", False):
@@ -351,36 +380,21 @@ def _cmd_run(args: argparse.Namespace) -> int:
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
-    # El canal de ficheros de Bruce se cablea antes que el colector; la caja
-    # se rellena cuando el colector existe (on_file no corre antes: el
-    # poller arranca con `run`, ya despues del colector).
+    # El canal de ficheros se cablea antes que el colector; la caja se rellena
+    # cuando el colector existe (on_file no corre antes: el poller arranca con
+    # `run`, ya despues del colector).
     collector_box: dict[str, Any] = {}
     source: AbstractSource
     if cfg["source"] == "bruce":
-        from .parser.pcap import PcapParser
         from .source.bruce_source import BruceStorageSource
         from .source.bruce_source import artifacts_dir as _ensure_dir
 
         baudrate = int(cfg["baudrate"])
         source = BruceStorageSource(cfg["port"], baudrate)
-        pcap_parser = PcapParser()
         raw_artifacts = getattr(args, "artifacts_dir", None)
         out_dir = _ensure_dir(raw_artifacts) if raw_artifacts else None
-
-        def on_file(path: str, data: bytes) -> None:
-            try:
-                events = pcap_parser.parse(data, source="serial")
-            except Exception:
-                logger.exception("no se pudo parsear el pcap %s", path)
-                return
-            if out_dir is not None:
-                (out_dir / Path(path).name).write_bytes(data)
-            collector_box["collector"].submit_events(events)
-
-        source.observe_files(on_file)
+        source.observe_files(_pcap_file_handler(collector_box, out_dir, source_tag="serial"))
     elif cfg["source"] == "bruce-web":
-        from .parser.pcap import PcapParser
-        from .source.bruce_source import artifacts_dir as _ensure_dir
         from .source.bruce_web_source import BruceWebSource
 
         url = str(cfg["url"])
@@ -390,21 +404,31 @@ def _cmd_run(args: argparse.Namespace) -> int:
             password=cfg["bruce_password"],
             fs=str(cfg["bruce_fs"]),
         )
-        pcap_parser = PcapParser()
+        raw_artifacts = getattr(args, "artifacts_dir", None)
+        from .source.bruce_source import artifacts_dir as _ensure_dir
+
+        out_dir = _ensure_dir(raw_artifacts) if raw_artifacts else None
+        source.observe_files(_pcap_file_handler(collector_box, out_dir, source_tag="serial"))
+    elif cfg["source"] == "sdcard":
+        from .source.bruce_source import artifacts_dir as _ensure_dir
+        from .source.sd_card_source import SdCardSource
+
+        sdcard_dir = cfg["sdcard_dir"]
+        if not sdcard_dir:
+            print(
+                "error: source=sdcard requiere --sdcard-dir (o M5W_SDCARD_DIR)",
+                file=sys.stderr,
+            )
+            return 2
+        root = Path(str(sdcard_dir))
+        if not root.is_dir():
+            print(f"error: no existe el directorio de la SD: {root}", file=sys.stderr)
+            return 2
+        print(f"m5wireless: SD {root}")
+        source = SdCardSource(root)
         raw_artifacts = getattr(args, "artifacts_dir", None)
         out_dir = _ensure_dir(raw_artifacts) if raw_artifacts else None
-
-        def on_file(path: str, data: bytes) -> None:
-            try:
-                events = pcap_parser.parse(data, source="serial")
-            except Exception:
-                logger.exception("no se pudo parsear el pcap %s", path)
-                return
-            if out_dir is not None:
-                (out_dir / Path(path).name).write_bytes(data)
-            collector_box["collector"].submit_events(events)
-
-        source.observe_files(on_file)
+        source.observe_files(_pcap_file_handler(collector_box, out_dir, source_tag="sdcard"))
     elif cfg["source"] == "serial":
         from .source.serial_source import list_ports, pick_port
 
@@ -453,7 +477,11 @@ def _cmd_run(args: argparse.Namespace) -> int:
     db_path = cfg["db_path"]
     store = SQLiteStore(db_path) if db_path else MemoryStore()
     source_type: SourceType = (
-        "serial" if cfg["source"] in ("serial", "bruce", "bruce-web") else "file"
+        "serial"
+        if cfg["source"] in ("serial", "bruce", "bruce-web")
+        else "sdcard"
+        if cfg["source"] == "sdcard"
+        else "file"
     )
     collector = Collector(source, parser, store, source_type=source_type)
     collector_box["collector"] = collector
@@ -481,11 +509,12 @@ def build_parser() -> argparse.ArgumentParser:
     run_p = subparsers.add_parser("run", help="captura + dashboard web (por defecto)")
     run_p.add_argument(
         "--source",
-        choices=("serial", "file", "bruce", "bruce-web"),
+        choices=("serial", "file", "bruce", "bruce-web", "sdcard"),
         default=None,
         help=(
             "serial = Marauder/Evil-M5Project en vivo; bruce = CLI Bruce + poller de "
-            "storage; bruce-web = WebUI HTTP de Bruce (sin serial)"
+            "storage; bruce-web = WebUI HTTP de Bruce (sin serial); sdcard = capturas "
+            "de una SD montada en el PC (Bruce/Marauder/Flipper/Hound)"
         ),
     )
     run_p.add_argument(
@@ -518,10 +547,16 @@ def build_parser() -> argparse.ArgumentParser:
         "defecto SD; usa LittleFS si el dispositivo no tiene tarjeta)",
     )
     run_p.add_argument(
+        "--sdcard-dir",
+        dest="sdcard_dir",
+        default=None,
+        help="directorio donde esta montada la SD (source=sdcard; o M5W_SDCARD_DIR)",
+    )
+    run_p.add_argument(
         "--artifacts-dir",
         dest="artifacts_dir",
         default=None,
-        help="guardar los pcaps extraidos de Bruce como artifacts (source=bruce/bruce-web)",
+        help="guardar los pcaps extraidos como artifacts (source=bruce/bruce-web/sdcard)",
     )
     run_p.add_argument("--db-path", default=None, help="SQLite persistente; sin valor = memoria")
     run_p.add_argument("--config", default=None, help="fichero m5wireless.toml específico")

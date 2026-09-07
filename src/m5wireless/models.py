@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Literal
 
-SourceType = Literal["serial", "file"]
+SourceType = Literal["serial", "file", "sdcard"]
 
 
 def utc_now() -> datetime:
