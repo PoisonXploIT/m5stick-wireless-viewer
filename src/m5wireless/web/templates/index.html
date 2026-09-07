@@ -35,16 +35,39 @@
 
     <section class="stats" aria-label="Contadores">
       <div class="stat">
-        <span class="stat-value" id="count-networks">0</span>
-        <span class="stat-label">redes</span>
+        <div class="stat-top">
+          <span class="stat-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M5 12.5a10 10 0 0 1 14 0" /><path d="M8.5 16a5.5 5.5 0 0 1 7 0" /><circle cx="12" cy="19" r="1.3" fill="currentColor" stroke="none" />
+            </svg>
+          </span>
+          <span class="stat-label">redes</span>
+        </div>
+        <span class="stat-value" id="count-networks" aria-live="polite">0</span>
+        <span class="stat-spark" id="spark-networks" title="Redes vistas en los últimos 10 min"></span>
       </div>
       <div class="stat">
-        <span class="stat-value" id="count-clients">0</span>
-        <span class="stat-label">clientes</span>
+        <div class="stat-top">
+          <span class="stat-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <rect x="3" y="7" width="18" height="12" rx="2" /><path d="M7 11h.01M11 11h.01M15 11h.01M7 15h10" />
+            </svg>
+          </span>
+          <span class="stat-label">clientes</span>
+        </div>
+        <span class="stat-value" id="count-clients" aria-live="polite">0</span>
+        <span class="stat-spark" id="spark-clients" title="Clientes vistos en los últimos 10 min"></span>
       </div>
       <div class="stat">
+        <div class="stat-top">
+          <span class="stat-icon" aria-hidden="true">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+              <path d="M4 17V9M9 17V5M14 17v-7M19 17V7" />
+            </svg>
+          </span>
+          <span class="stat-label">fuente</span>
+        </div>
         <span class="stat-value stat-value-small" id="meta-source">—</span>
-        <span class="stat-label">fuente</span>
       </div>
     </section>
 
@@ -67,7 +90,13 @@
         max="0"
         placeholder="RSSI mín."
       />
+      <label class="filter-toggle">
+        <input type="checkbox" id="filter-clients" />
+        solo con clientes
+      </label>
     </section>
+
+    <div id="filter-chips" class="chips" aria-label="Filtros activos"></div>
 
     <main class="grid">
       <section class="panel" aria-label="Redes">
@@ -95,7 +124,14 @@
 
       <section class="panel channels-panel" aria-label="Distribución por canal">
         <h2>Distribución por canal</h2>
-        <ul id="channels" class="channels"></ul>
+        <div class="channels-band">
+          <h3 class="channels-band-title">2.4 GHz</h3>
+          <ul id="channels-24" class="channels"></ul>
+        </div>
+        <div class="channels-band">
+          <h3 class="channels-band-title">5 GHz</h3>
+          <ul id="channels-5" class="channels"></ul>
+        </div>
       </section>
     </main>
 

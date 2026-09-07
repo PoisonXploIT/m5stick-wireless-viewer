@@ -1,9 +1,9 @@
-// m5wireless dashboard (Fase 4): vanilla JS, sin frameworks.
+// m5wireless dashboard (Fase 4 + Plan UI/UX v2, Hito A): vanilla JS, sin frameworks.
 // - SSE en /api/events con reconexion controlada (sin polling).
 // - Actualizacion incremental: cada evento parchea solo la fila afectada;
 //   render completo solo al cambiar filtro/orden.
-// - Filtros en cliente sobre el estado ya cargado (canal, RSSI min, texto);
-//   para consultas historicas usar /api/networks?since=...
+// - Filtros en cliente con persistencia (localStorage) y chips de activos.
+// - Sparklines de actividad (10 min) y heatmap de canales por banda, SVG/CSS propios.
 
 (() => {
   "use strict";
@@ -12,11 +12,17 @@
   const RECONNECT_MS = 3000;
   const CONSOLE_LIMIT = 200;
   const STATUS_POLL_MS = 5000;
+  const SPARK_WINDOW_MS = 10 * 60 * 1000; // 10 min de actividad
+  const SPARK_BUCKETS = 30;
+  const LIVE_THRESHOLD_MS = 30 * 1000; // "activa ahora" si se vio hace <30 s
+  const FILTERS_STORAGE_KEY = "m5wireless.filters";
 
   // ---- estado ----
   const networks = new Map(); // bssid -> {bssid, ssid, channel, rssi, last_seen}
   const clients = new Map(); // mac -> {mac, bssid}
   const consoleLines = [];
+  // Ventana de actividad para las sparklines: timestamps de eventos recientes.
+  const activity = { networks: [], clients: [] };
   let sortKey = "last_seen";
   let sortDir = "desc";
   let es = null; // EventSource actual
@@ -26,12 +32,15 @@
   const $ = (id) => document.getElementById(id);
   const tbody = $("networks-body");
   const consoleEl = $("console");
-  const channelsEl = $("channels");
+  const channels24El = $("channels-24");
+  const channels5El = $("channels-5");
   const statusEl = $("sse-status");
   const connStatusEl = $("conn-status");
   const filterText = $("filter-text");
   const filterChannel = $("filter-channel");
   const filterRssi = $("filter-rssi");
+  const filterClients = $("filter-clients");
+  const chipsEl = $("filter-chips");
 
   // ---- utilidades ----
 
@@ -44,7 +53,7 @@
 
   function fmtTime(iso) {
     const d = new Date(iso);
-    return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString();
+    return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString("es-ES", { hour12: false });
   }
 
   function countClientsFor(bssid) {
@@ -79,6 +88,14 @@
       mac: data.mac,
       bssid: data.bssid !== null && data.bssid !== undefined ? data.bssid : (prev ? prev.bssid : null),
     });
+  }
+
+  function trackActivity(bucket, ts) {
+    const t = new Date(ts).getTime();
+    if (Number.isNaN(t)) return;
+    bucket.push(t);
+    const cutoff = Date.now() - SPARK_WINDOW_MS;
+    while (bucket.length > 0 && bucket[0] < cutoff) bucket.shift();
   }
 
   // ---- consola ----
@@ -127,6 +144,7 @@
     const minRssiRaw = filterRssi.value.trim();
     const minRssi = minRssiRaw === "" ? null : Number(minRssiRaw);
     if (minRssi !== null && (v.rssi === null || v.rssi < minRssi)) return false;
+    if (filterClients.checked && v.n_clients === 0) return false;
     return true;
   }
 
@@ -158,6 +176,50 @@
     span.textContent = text;
   }
 
+  // Celda RSSI: barra de senal mini + valor (A5).
+  function signalCell(td, rssi) {
+    td.textContent = "";
+    td.className = "mono";
+    if (rssi === null || rssi === undefined) {
+      td.textContent = "—";
+      return;
+    }
+    const wrap = document.createElement("span");
+    wrap.className = "signal";
+    const track = document.createElement("span");
+    track.className = "signal-track";
+    const fill = document.createElement("span");
+    fill.className = `signal-fill ${rssiClass(rssi)}`.trim();
+    // -100..0 dBm -> 5..100% de la barra.
+    fill.style.width = `${Math.max(5, Math.min(100, Math.round(((rssi + 100) / 100) * 100)))}%`;
+    track.appendChild(fill);
+    const value = document.createElement("span");
+    value.textContent = `${rssi} dBm`;
+    wrap.append(track, value);
+    td.appendChild(wrap);
+  }
+
+  // Celda "ultima vista": punto pulsante si la red esta activa (A5).
+  function timeCell(td, iso) {
+    td.textContent = "";
+    td.className = "time";
+    const live =
+      iso && Date.now() - new Date(iso).getTime() < LIVE_THRESHOLD_MS;
+    if (live) {
+      const wrap = document.createElement("span");
+      wrap.className = "cell-live";
+      const dot = document.createElement("span");
+      dot.className = "live-dot";
+      dot.title = "Activa ahora";
+      const t = document.createElement("span");
+      t.textContent = fmtTime(iso);
+      wrap.append(dot, t);
+      td.appendChild(wrap);
+    } else {
+      td.textContent = fmtTime(iso);
+    }
+  }
+
   function renderRow(v) {
     const tr = document.createElement("tr");
     tr.dataset.bssid = v.bssid;
@@ -165,16 +227,17 @@
       v.ssid || "—",
       v.bssid,
       v.channel === null ? "—" : String(v.channel),
-      v.rssi === null ? "—" : `${v.rssi} dBm`,
+      null, // RSSI: signalCell
       String(v.n_clients),
-      fmtTime(v.last_seen),
+      null, // hora: timeCell
     ];
     cells.forEach((text, i) => {
       const td = document.createElement("td");
-      td.textContent = text;
+      if (i === 0) {
+        td.textContent = text;
+      }
       if (i === 1) {
         // BSSID: enlace a la vista de detalle de la red.
-        td.textContent = "";
         td.className = "mono";
         const a = document.createElement("a");
         a.href = `/network?bssid=${encodeURIComponent(v.bssid)}`;
@@ -183,12 +246,12 @@
         td.appendChild(a);
       }
       if (i === 2) badgeCell(td, text);
-      if (i === 3) {
-        td.className = "mono";
-        badgeCell(td, text, v.rssi !== null ? rssiClass(v.rssi) : "");
+      if (i === 3) signalCell(td, v.rssi);
+      if (i === 4) {
+        td.textContent = text;
+        td.className = "num";
       }
-      if (i === 4) td.className = "num";
-      if (i === 5) td.className = "time";
+      if (i === 5) timeCell(td, v.last_seen);
       tr.appendChild(td);
     });
     return tr;
@@ -243,12 +306,10 @@
     const tds = tr.children;
     tds[0].textContent = v.ssid || "—";
     badgeCell(tds[2], v.channel === null ? "—" : String(v.channel));
-    tds[3].className = "mono";
-    badgeCell(tds[3], v.rssi === null ? "—" : `${v.rssi} dBm`, v.rssi !== null ? rssiClass(v.rssi) : "");
+    signalCell(tds[3], v.rssi);
     tds[4].textContent = String(v.n_clients);
     tds[4].className = "num";
-    tds[5].textContent = fmtTime(v.last_seen);
-    tds[5].className = "time";
+    timeCell(tds[5], v.last_seen);
     flashRow(tr);
     return true;
   }
@@ -262,11 +323,92 @@
     }
   }
 
-  // ---- contadores y distribucion por canal ----
+  // ---- contadores, sparklines y distribucion por canal ----
+
+  // Sparkline SVG (linea + area) a partir de timestamps en la ventana de 10 min.
+  function renderSpark(el, timestamps) {
+    el.textContent = "";
+    const now = Date.now();
+    const cutoff = now - SPARK_WINDOW_MS;
+    const buckets = new Array(SPARK_BUCKETS).fill(0);
+    for (const t of timestamps) {
+      if (t < cutoff) continue;
+      const i = Math.min(
+        SPARK_BUCKETS - 1,
+        Math.floor(((t - cutoff) / SPARK_WINDOW_MS) * SPARK_BUCKETS)
+      );
+      buckets[i] += 1;
+    }
+    const W = 120;
+    const H = 26;
+    const max = Math.max(...buckets, 1);
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+    const stepX = W / SPARK_BUCKETS;
+    const pts = buckets.map((n, i) => {
+      const px = (i + 0.5) * stepX;
+      const py = n === 0 ? H - 1 : H - 2 - (n / max) * (H - 6);
+      return `${px.toFixed(1)},${py.toFixed(1)}`;
+    });
+    const area = document.createElementNS(svg.namespaceURI, "polygon");
+    area.setAttribute("points", `0,${H} ${pts.join(" ")} ${W},${H}`);
+    area.setAttribute("class", "spark-area");
+    const line = document.createElementNS(svg.namespaceURI, "polyline");
+    line.setAttribute("points", pts.join(" "));
+    line.setAttribute("class", "spark-line");
+    svg.append(area, line);
+    el.appendChild(svg);
+  }
 
   function updateCounters() {
     $("count-networks").textContent = String(networks.size);
     $("count-clients").textContent = clients.size;
+    renderSpark($("spark-networks"), activity.networks);
+    renderSpark($("spark-clients"), activity.clients);
+  }
+
+  // Color por ocupacion absoluta: con pocas redes el ratio al maximo de la
+  // banda pintaria todo "alta" (enganoso); los umbrales absolutos reflejan
+  // congestion real (A7).
+  function bandClass(n) {
+    if (n >= 6) return "ch-high";
+    if (n >= 3) return "ch-mid";
+    return "ch-low";
+  }
+
+  function renderBand(el, entries, max) {
+    el.textContent = "";
+    if (entries.length === 0) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.className = "ch-num";
+      label.textContent = "—";
+      const note = document.createElement("span");
+      note.className = "ch-count";
+      note.style.gridColumn = "2 / 4";
+      note.style.textAlign = "left";
+      note.textContent = "sin datos";
+      li.append(label, note);
+      el.appendChild(li);
+      return;
+    }
+    for (const [ch, n] of entries) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.className = "ch-num";
+      label.textContent = String(ch);
+      const track = document.createElement("div");
+      track.className = "bar-track";
+      const fill = document.createElement("div");
+      fill.className = `bar-fill ${bandClass(n, max)}`;
+      fill.style.width = `${Math.max(4, Math.round((n / max) * 100))}%`;
+      track.appendChild(fill);
+      const count = document.createElement("span");
+      count.className = "ch-count";
+      count.textContent = String(n);
+      li.append(label, track, count);
+      el.appendChild(li);
+    }
   }
 
   function renderChannels() {
@@ -275,24 +417,10 @@
       if (net.channel !== null) dist[net.channel] = (dist[net.channel] || 0) + 1;
     }
     const entries = Object.entries(dist).map(([ch, n]) => [Number(ch), n]).sort((a, b) => a[0] - b[0]);
-    const max = entries.length ? Math.max(...entries.map(([, n]) => n)) : 1;
-
-    channelsEl.textContent = "";
-    for (const [ch, n] of entries) {
-      const li = document.createElement("li");
-      const label = document.createElement("span");
-      label.textContent = `Canal ${ch}`;
-      const track = document.createElement("div");
-      track.className = "bar-track";
-      const fill = document.createElement("div");
-      fill.className = "bar-fill";
-      fill.style.width = `${Math.max(4, Math.round((n / max) * 100))}%`;
-      track.appendChild(fill);
-      const count = document.createElement("span");
-      count.textContent = String(n);
-      li.append(label, track, count);
-      channelsEl.appendChild(li);
-    }
+    const band24 = entries.filter(([ch]) => ch >= 1 && ch <= 14);
+    const band5 = entries.filter(([ch]) => ch > 14);
+    renderBand(channels24El, band24, band24.length ? Math.max(...band24.map(([, n]) => n)) : 1);
+    renderBand(channels5El, band5, band5.length ? Math.max(...band5.map(([, n]) => n)) : 1);
 
     // Opciones del filtro de canal (union con los ya existentes).
     const existing = new Set(
@@ -313,6 +441,7 @@
   function handleEvent(data) {
     if (data.event === "network_seen") {
       upsertNetwork(data);
+      trackActivity(activity.networks, data.timestamp || data.last_seen);
       renderChannels();
       updateCounters();
       // Red nueva: render completo (mantiene el orden de la columna de
@@ -336,6 +465,7 @@
       appendConsoleLine(data.raw_line);
     } else if (data.event === "client_associated") {
       upsertClient(data);
+      trackActivity(activity.clients, data.timestamp || data.last_seen);
       updateCounters();
       if (data.bssid) patchRow(data.bssid); // refresca n_clients de la red
       appendConsoleLine(data.raw_line);
@@ -400,12 +530,88 @@
     };
   }
 
+  // ---- filtros: persistencia + chips (A6) ----
+
+  function saveFilters() {
+    try {
+      localStorage.setItem(
+        FILTERS_STORAGE_KEY,
+        JSON.stringify({
+          text: filterText.value,
+          channel: filterChannel.value,
+          rssi: filterRssi.value,
+          clientsOnly: filterClients.checked,
+        })
+      );
+    } catch (_err) {
+      // localStorage no disponible: los filtros quedan solo en memoria.
+    }
+  }
+
+  function loadFilters() {
+    try {
+      const raw = localStorage.getItem(FILTERS_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (typeof saved.text === "string") filterText.value = saved.text;
+      if (typeof saved.channel === "string") filterChannel.value = saved.channel;
+      if (typeof saved.rssi === "string") filterRssi.value = saved.rssi;
+      if (typeof saved.clientsOnly === "boolean") filterClients.checked = saved.clientsOnly;
+    } catch (_err) {
+      // valor corrupto: se ignoran los filtros guardados.
+    }
+  }
+
+  // Chips de filtros activos, con boton de dismiss por filtro.
+  function renderChips() {
+    chipsEl.textContent = "";
+    const active = [];
+    const text = filterText.value.trim();
+    if (text) active.push({ key: "text", label: `texto: <b>${text}</b>` });
+    if (filterChannel.value) {
+      active.push({ key: "channel", label: `canal: <b>${filterChannel.value}</b>` });
+    }
+    if (filterRssi.value.trim()) {
+      active.push({ key: "rssi", label: `RSSI ≥ <b>${filterRssi.value.trim()} dBm</b>` });
+    }
+    if (filterClients.checked) active.push({ key: "clients", label: "solo con clientes" });
+    for (const { key, label } of active) {
+      const chip = document.createElement("span");
+      chip.className = "chip";
+      const txt = document.createElement("span");
+      txt.innerHTML = label;
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.title = "Quitar filtro";
+      btn.setAttribute("aria-label", "Quitar filtro");
+      btn.textContent = "×";
+      btn.addEventListener("click", () => {
+        if (key === "text") filterText.value = "";
+        else if (key === "channel") filterChannel.value = "";
+        else if (key === "rssi") filterRssi.value = "";
+        else if (key === "clients") filterClients.checked = false;
+        saveFilters();
+        renderTable();
+        renderChips();
+      });
+      chip.append(txt, btn);
+      chipsEl.appendChild(chip);
+    }
+  }
+
+  function onFilterChanged() {
+    saveFilters();
+    renderChips();
+    renderTable();
+  }
+
   // ---- filtros y orden ----
 
   function bindControls() {
-    filterText.addEventListener("input", renderTable);
-    filterChannel.addEventListener("change", renderTable);
-    filterRssi.addEventListener("input", renderTable);
+    filterText.addEventListener("input", onFilterChanged);
+    filterChannel.addEventListener("change", onFilterChanged);
+    filterRssi.addEventListener("input", onFilterChanged);
+    filterClients.addEventListener("change", onFilterChanged);
 
     for (const th of document.querySelectorAll("#networks-table th[data-key]")) {
       const btn = th.querySelector(".sort-btn");
@@ -425,7 +631,9 @@
   // ---- arranque ----
 
   async function init() {
+    loadFilters();
     bindControls();
+    renderChips();
     try {
       const [nets, cls, cons] = await Promise.all([
         fetchJSON("/api/networks"),

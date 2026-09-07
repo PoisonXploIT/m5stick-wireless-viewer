@@ -20,12 +20,15 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.3 publicada + SdCardSource + vista detalle en main; 187
-tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md: seccion 'Plan
-UI/UX v2' — Hito A (sistema de diseno + dashboard). Restricciones: sin
-build step ni CDN/webfonts (campo sin internet), vanilla JS/CSS,
-mobile-first, enterprise limpio (sobrio, aire, grises azulados, acento
-unico, mono solo para datos). Commits en español, sin emojis.
+(rama main; v3.2.3 publicada + SdCardSource + vista detalle + Hito A del
+Plan UI/UX v2 en main; 187 tests; ruff + mypy --strict limpios). Lee
+SEGUIMIENTO.md: seccion 'Plan UI/UX v2' — toca Hito B (consola color por
+evento + pausa/limpiar/copiar; detalle: area degradada + crosshair tooltip,
+histograma actividad, copiar BSSID; navegacion: breadcrumb + restaurar
+filtros). Restricciones: sin build step ni CDN/webfonts, vanilla JS/CSS,
+mobile-first, enterprise limpio, mono solo para datos. Commits en español,
+sin emojis. Nota capturas: chrome --headless=old (sin virtual-time-budget,
+el SSE cuelga el screenshot).
 ```
 
 ---
@@ -712,23 +715,24 @@ en navegador real antes de release, commits en espanol sin emojis. Cero
 cambios de backend salvo reutilizar lo que ya existe (`/api/health` ya
 expone stats del collector; `/api/status` existe).
 
-### Hito A — Sistema de diseno + dashboard (~1 sesion)
+### Hito A — Sistema de diseno + dashboard (~1 sesion) — COMPLETO
 
-- A1. **Tokens v2**: escala de superficies con niveles de elevacion
-  (surface-1/2/3), semanticos, escala de espaciado 4px, escala
-  tipografica, radios y sombras suaves. Reorganizar las custom properties.
-- A2. **Tipografia**: jerarquia clara; sans para UI, mono SOLO para datos
-  (BSSID, MAC, RSSI, timestamps). Contadores con tabular-nums.
-- A3. **Topbar**: jerarquia de marca + estado mas limpia.
-- A4. **KPIs**: tarjetas con icono SVG inline y sparkline de actividad
-  (ultimos 10 min, SVG propio) en vez de numero estatico.
-- A5. **Tabla de redes**: cabecera sticky, indicador "activa ahora" (pulse
-  si last_seen < 30 s), columna RSSI como barra de senal mini + valor,
-  focus-visible en filas.
-- A6. **Filtros v2**: persistencia en localStorage, chips de filtros
-  activos con dismiss, filtro rapido "solo con clientes".
-- A7. **Canales**: heatmap por banda (2.4/5 GHz) con barras por canal y
-  color por congestion, en vez de lista simple.
+- A1-A3. Tokens v2 aplicados: 3 niveles de superficie, bordes fuertes,
+  sombras suaves, acento #4c8dff, focus-visible global. Mono solo para datos.
+- A4. KPIs: icono SVG por tarjeta + sparkline de actividad (10 min, 30
+  buckets, SVG linea+area propio) en redes y clientes.
+- A5. Tabla: cabecera sticky (`.table-wrap` con max-height), punto
+  pulsante "activa ahora" si last_seen < 30 s, RSSI como barra de senal
+  mini + valor (relleno -100..0 dBm, color semantico).
+- A6. Filtros: persistencia en localStorage (`m5wireless.filters`), chips
+  de activos con dismiss, toggle "solo con clientes" (filtra n_clients=0).
+- A7. Canales: heatmap por banda (2.4/5 GHz) con color por OCUPACION
+  ABSOLUTA (>=6 alta, >=3 media; el ratio al maximo pintaba todo rojo con
+  pocas redes — fix visto en capturas).
+- Validacion: 187 tests, ruff + mypy limpios; capturas headless escritorio
+  1440px y movil 390px verificadas (chrome `--headless=old`; NO usar
+  `--virtual-time-budget`: el stream SSE cuelga el screenshot).
+- Decisiones: umbrales de congestion absolutos; sparkline propio sin deps.
 
 ### Hito B — Consola + vista detalle (~1 sesion)
 
