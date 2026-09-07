@@ -4,11 +4,12 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.2.3 publicada + SdCardSource en main (item 1 del
-roadmap de unificacion; 186 tests, ruff + mypy --strict limpios).
-Roadmap actual: seccion 'Continuar (sesion siguiente)' — unificacion de
-fuentes; quedan los items 2 (Marauder WebUI) y 3 (HackRF IQ), ambos gated
-por hardware/muestra real.
+Última actualización: Hitos A y B del Plan UI/UX v2 en main (5e3b775, ebc7329,
+60cab65; 187 tests, ruff + mypy --strict limpios; commits locales sin
+empujar: 5e3b775, 3f3b95e, ebc7329, 60cab65).
+Roadmap actual: Hito C del Plan UI/UX v2 (pulido UX + calidad + release
+3.3.0), seccion 'Plan UI/UX v2'. Items gated por hardware en seccion
+'Continuar': Marauder WebUI e IQ HackRF.
 
 ---
 
@@ -20,15 +21,18 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.3 publicada + SdCardSource + vista detalle + Hito A del
-Plan UI/UX v2 en main; 187 tests; ruff + mypy --strict limpios). Lee
-SEGUIMIENTO.md: seccion 'Plan UI/UX v2' — toca Hito B (consola color por
-evento + pausa/limpiar/copiar; detalle: area degradada + crosshair tooltip,
-histograma actividad, copiar BSSID; navegacion: breadcrumb + restaurar
-filtros). Restricciones: sin build step ni CDN/webfonts, vanilla JS/CSS,
+(rama main; Hitos A y B del Plan UI/UX v2 en main; 187 tests; ruff +
+mypy --strict limpios). Lee SEGUIMIENTO.md: seccion 'Plan UI/UX v2' — toca
+Hito C (skeletons, empty states con CTA + SVG propio, toasts para errores
+SSE/API, aria-live, stats del pipeline via /api/health, smoke CDP final,
+release 3.3.0 con bump en pyproject.toml + reinstalar editable en .venv).
+Restricciones: sin build step ni CDN/webfonts, vanilla JS/CSS,
 mobile-first, enterprise limpio, mono solo para datos. Commits en español,
 sin emojis. Nota capturas: chrome --headless=old (sin virtual-time-budget,
-el SSE cuelga el screenshot).
+el SSE cuelga el screenshot). Infra de smoke CDP reutilizable en
+C:\tmp_smoke\cdp_smoke.py y cdp_debug.py (imprime excepciones JS;
+requiere websocket-client, instalado en el venv; Chrome con
+--remote-allow-origins=*).
 ```
 
 ---
@@ -734,16 +738,30 @@ expone stats del collector; `/api/status` existe).
   `--virtual-time-budget`: el stream SSE cuelga el screenshot).
 - Decisiones: umbrales de congestion absolutos; sparkline propio sin deps.
 
-### Hito B — Consola + vista detalle (~1 sesion)
+### Hito B — Consola + vista detalle (~1 sesion) — COMPLETO
 
-- B1. **Consola**: color por tipo de evento (network_seen/cliente/status),
-  timestamp alineado, botones pausa/limpiar/copiar, contador de lineas
-  nuevas en pausa.
-- B2. **Detalle**: header con SSID grande + boton copiar BSSID; grafica
-  RSSI con area degradada, puntos y crosshair con tooltip; histograma de
-  actividad temporal; historico coloreado por evento.
-- B3. **Navegacion**: breadcrumb indice > red; al volver del detalle,
-  restaurar filtros (sessionStorage).
+- B1. **Consola**: `<div>` con líneas `.console-line` (timestamp alineado +
+  color por tipo: `txt-net`/`txt-client`/`txt-status`), botones
+  Pausar/Limpiar/Copiar (`.btn btn-sm`), badge de líneas pendientes en
+  pausa (`.chip`).
+- B2. **Detalle**: gráfica RSSI con área degradada (`linearGradient`),
+  puntos `.chart-dot`, crosshair + tooltip en mousemove; histograma de
+  actividad (30 buckets) en panel propio; botón Copiar BSSID;
+  historial con badges de evento coloreados; tablas de clientes/historial
+  estiladas y empty states alineados a la izquierda.
+- B3. **Navegacion**: breadcrumb índice > red; filtros + ordenación se
+  persisten en `localStorage["m5wireless.filters"]` y se restauran al
+  volver.
+- Validacion: 187 tests, ruff + mypy limpios; smoke CDP real (dashboard y
+  detalle renderizando, SSE OK).
+- **Bugs que el smoke atrapó (importante)**:
+  1. `consoleLines` estaba declarado dos veces en `dashboard.js` →
+     SyntaxError, dashboard en blanco. Eliminada la duplicada.
+  2. `network.js` llevaba un docstring estilo Python `"""..."""` desde su
+     creación → **la vista de detalle nunca funcionó en navegador hasta
+     hoy**. Sustituido por comentarios `//`.
+- Decisiones: consola ya no es `<pre>` con textContent (líneas DOM para
+  color/badges); histograma en SVG propio, sin deps.
 
 ### Hito C — Pulido UX + calidad (~1 sesion)
 
