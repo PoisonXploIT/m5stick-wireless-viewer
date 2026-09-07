@@ -716,19 +716,77 @@ td.time {
 
 .footer {
   display: flex;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
   padding: 4px 20px 28px;
   color: var(--text-dim);
   font-size: 0.85rem;
 }
 
-.footer a {
-  color: var(--accent);
+/* ---- botones: jerarquia primary / default / ghost (Hito B los reutiliza) ---- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--panel-2);
+  color: var(--text);
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 550;
   text-decoration: none;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    transform 0.1s ease;
 }
 
-.footer a:hover {
-  text-decoration: underline;
+.btn:hover {
+  background: var(--panel-3);
+  border-color: var(--text-faint);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn svg {
+  flex: none;
+  opacity: 0.8;
+}
+
+/* accion principal de la zona (un solo primary por vista) */
+.btn-primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #3d7df2;
+  border-color: #3d7df2;
+}
+
+.btn-primary svg {
+  opacity: 1;
+}
+
+/* accion secundaria: solo contorno y texto tenue */
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-dim);
+}
+
+.btn-ghost:hover {
+  background: var(--panel-2);
+  border-color: var(--border);
+  color: var(--text);
 }
 
 /* ---- accesibilidad: respeta usuarios con animaciones reducidas ---- */

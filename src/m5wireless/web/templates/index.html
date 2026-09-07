@@ -136,11 +136,24 @@
     </main>
 
     <footer class="footer">
-      <a href="/api/export/csv">Export CSV</a>
-      <span aria-hidden="true">·</span>
-      <a href="/api/export/json">Export JSON</a>
-      <span aria-hidden="true">·</span>
-      <a href="/api/health">Health</a>
+      <a class="btn btn-primary" href="/api/export/csv" download>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12" /><path d="m7 11 5 5 5-5" /><path d="M4 19h16" />
+        </svg>
+        Export CSV
+      </a>
+      <a class="btn" href="/api/export/json" download>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M12 3v12" /><path d="m7 11 5 5 5-5" /><path d="M4 19h16" />
+        </svg>
+        Export JSON
+      </a>
+      <a class="btn btn-ghost" href="/api/health">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 12h4l2 6 4-14 2 8h6" />
+        </svg>
+        Health
+      </a>
     </footer>
 
     <script src="/static/js/dashboard.js" defer></script>
