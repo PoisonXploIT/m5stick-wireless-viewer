@@ -20,16 +20,12 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.2.3 publicada + SdCardSource en main — item 1 de unificacion;
-186 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md: secciones
-'v3.3.0-dev' (SdCardSource), 'Vision: unificacion' y 'Continuar'. Tarea del
-dia: items 2 y 3 del roadmap de unificacion, AMBOS GATED por hardware — (2)
-adapter WebUI de Marauder reutilizando BruceWebClient (necesita dispositivo
-real; sin fixture real no se escribe parser); (3) parser IQ de HackRF
-separado de PcapParser (necesita muestra IQ real). Mientras no haya
-hardware: opciones no gated = UI (vista de detalle de red con
-/api/networks/{bssid}, tiempos relativos) o publicar 3.3.0 con SdCardSource.
-Commits en español, sin emojis.
+(rama main; v3.2.3 publicada + SdCardSource + vista detalle en main; 187
+tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md: seccion 'Plan
+UI/UX v2' — Hito A (sistema de diseno + dashboard). Restricciones: sin
+build step ni CDN/webfonts (campo sin internet), vanilla JS/CSS,
+mobile-first, enterprise limpio (sobrio, aire, grises azulados, acento
+unico, mono solo para datos). Commits en español, sin emojis.
 ```
 
 ---
@@ -700,6 +696,71 @@ LittleFS). Marauder/Flipper/HackRF/Hound: por confirmar.
 - Cada fase termina con: tests pasando, ruff limpio, mypy --strict limpio, commit, y actualización de este SEGUIMIENTO.md (nueva entrada en changelog con su mini prompt).
 - No inventar parsers sin fixture real.
 - `datetime.now(timezone.utc)` vía `utc_now()`; nunca `utcnow`.
+
+---
+
+## Plan UI/UX v2 — salto cualitativo (decidido 2026-09-07)
+
+Decisiones del usuario: direccion de arte **enterprise limpio** (estilo
+Linear/GitHub-dark: sobrio, mucho aire, grises azulados, acento unico; sin
+glow ni estetica cyber) y **alcance: todo el frontend** (dashboard indice,
+consola, vista detalle, estados, accesibilidad).
+
+Restricciones inamovibles: sin build step, sin CDN ni webfonts (tiene que
+funcionar en campo sin internet), vanilla JS/CSS, mobile-first, smoke CDP
+en navegador real antes de release, commits en espanol sin emojis. Cero
+cambios de backend salvo reutilizar lo que ya existe (`/api/health` ya
+expone stats del collector; `/api/status` existe).
+
+### Hito A — Sistema de diseno + dashboard (~1 sesion)
+
+- A1. **Tokens v2**: escala de superficies con niveles de elevacion
+  (surface-1/2/3), semanticos, escala de espaciado 4px, escala
+  tipografica, radios y sombras suaves. Reorganizar las custom properties.
+- A2. **Tipografia**: jerarquia clara; sans para UI, mono SOLO para datos
+  (BSSID, MAC, RSSI, timestamps). Contadores con tabular-nums.
+- A3. **Topbar**: jerarquia de marca + estado mas limpia.
+- A4. **KPIs**: tarjetas con icono SVG inline y sparkline de actividad
+  (ultimos 10 min, SVG propio) en vez de numero estatico.
+- A5. **Tabla de redes**: cabecera sticky, indicador "activa ahora" (pulse
+  si last_seen < 30 s), columna RSSI como barra de senal mini + valor,
+  focus-visible en filas.
+- A6. **Filtros v2**: persistencia en localStorage, chips de filtros
+  activos con dismiss, filtro rapido "solo con clientes".
+- A7. **Canales**: heatmap por banda (2.4/5 GHz) con barras por canal y
+  color por congestion, en vez de lista simple.
+
+### Hito B — Consola + vista detalle (~1 sesion)
+
+- B1. **Consola**: color por tipo de evento (network_seen/cliente/status),
+  timestamp alineado, botones pausa/limpiar/copiar, contador de lineas
+  nuevas en pausa.
+- B2. **Detalle**: header con SSID grande + boton copiar BSSID; grafica
+  RSSI con area degradada, puntos y crosshair con tooltip; histograma de
+  actividad temporal; historico coloreado por evento.
+- B3. **Navegacion**: breadcrumb indice > red; al volver del detalle,
+  restaurar filtros (sessionStorage).
+
+### Hito C — Pulido UX + calidad (~1 sesion)
+
+- C1. **Estados**: skeleton loaders en carga inicial; empty states con SVG
+  propio y CTA (comando de ejemplo para conectar fuente).
+- C2. **Toasts** para errores SSE/API/desconexion (hoy silencio total).
+- C3. **Accesibilidad**: focus-visible global, aria-live en contadores y
+  consola, contraste AA.
+- C4. **Estado del pipeline**: stats del collector (lineas/eventos/errores)
+  visibles en el dashboard (reutiliza /api/health).
+- C5. **Validacion**: smoke CDP real (carga, SSE, flash, filtros, detalle,
+  consola), capturas before/after escritorio 1440px y movil 390px.
+- C6. **Release**: bump 3.3.0, tag, PyPI.
+
+Estimacion: 3 sesiones. Orden de los hitos es negociable; no empezar el
+siguiente sin cerrar el anterior (tests + smoke del alcance del hito).
+
+### Antes / despues (referencia para C5)
+
+- Antes (v3.2.3): capturas en el changelog del rediseño anterior
+  (seccion 'Rediseño visual del dashboard' mas arriba).
 
 ---
 
