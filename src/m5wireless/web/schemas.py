@@ -103,6 +103,37 @@ class ChannelDistributionResponse(BaseModel):
     channels: dict[int, int]
 
 
+# ---- importador de capturas (pcaps grabados / SD montada) ----
+
+
+class FsEntry(BaseModel):
+    """Entrada del navegador de ficheros del importador."""
+
+    name: str
+    path: str
+    kind: str  # "dir" | "file"
+    size: int | None = None  # solo ficheros
+
+
+class FsBrowseResponse(BaseModel):
+    """Listado de un directorio; `path=None` = raiz (unidades de disco)."""
+
+    path: str | None
+    parent: str | None
+    entries: list[FsEntry]
+
+
+class ImportRequest(BaseModel):
+    path: str
+
+
+class ImportResponse(BaseModel):
+    files: int
+    events: int
+    errors: int
+    messages: list[str]  # detalle por fichero fallido (tope interno)
+
+
 class ConsoleLine(BaseModel):
     """Linea del historico para la consola (incluye `raw_line`)."""
 

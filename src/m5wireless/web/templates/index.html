@@ -173,6 +173,12 @@
     </main>
 
     <footer class="footer">
+      <button type="button" id="import-open" class="btn">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+        </svg>
+        Importar
+      </button>
       <a class="btn btn-primary" href="/api/export/csv" download>
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
           <path d="M12 3v12" /><path d="m7 11 5 5 5-5" /><path d="M4 19h16" />
@@ -192,6 +198,26 @@
         Health
       </a>
     </footer>
+
+    <div id="import-modal" class="modal" hidden>
+      <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="import-title">
+        <div class="modal-head">
+          <h2 id="import-title">Importar capturas (pcap)</h2>
+          <button type="button" id="import-close" class="btn btn-sm btn-ghost" aria-label="Cerrar importador">×</button>
+        </div>
+        <div class="modal-crumbs">
+          <button type="button" id="import-up" class="btn btn-sm btn-ghost" title="Subir un nivel">↑</button>
+          <span id="import-path" class="mono" title="Directorio actual">unidades</span>
+          <span class="modal-crumbs-spacer"></span>
+          <button type="button" id="import-dir" class="btn btn-sm btn-primary" disabled>Importar carpeta</button>
+        </div>
+        <ul id="import-list" class="import-list"></ul>
+        <p class="modal-note">
+          Importa pcaps grabados (SD montada, capturas sueltas). Los eventos
+          entran en vivo en la tabla y la consola, igual que una fuente binaria.
+        </p>
+      </div>
+    </div>
 
     <div id="toasts" class="toasts" role="status" aria-live="polite"></div>
     <span id="console-announcer" class="sr-only" aria-live="polite"></span>

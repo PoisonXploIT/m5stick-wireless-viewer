@@ -4,9 +4,10 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.3.0 publicada (tag v3.3.0 -> GitHub Release +
-PyPI via trusted publishing; Plan UI/UX v2 completo con los Hitos A, B
-y C; 187 tests, ruff + mypy --strict limpios).
+Última actualización: v3.4.0 en local (importador de capturas desde el
+dashboard: /api/fs/browse + /api/import + modal; 196 tests, ruff +
+mypy --strict limpios). Pendiente: push + tag v3.4.0 con confirmacion
+del usuario.
 Roadmap actual: seccion 'Continuar' — unificacion de fuentes; quedan los
 items 2 (Marauder WebUI) y 3 (IQ HackRF), ambos gated por
 hardware/muestra real.
@@ -21,22 +22,21 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.3.0 publicada en PyPI con el Plan UI/UX v2 completo;
-187 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md. Trabajo
-pendiente NO gated: solo los items 2 (adapter WebUI de Marauder
-reutilizando BruceWebClient) y 3 (parser IQ de HackRF) de la seccion
-'Continuar', ambos gated por hardware/muestra real — sin dispositivo o
-fixture NO se escriben parsers (regla del proyecto). Tambien
-disponibles como trabajo no gated: tiempos relativos en "ultima vista"
-del indice, selector de fuente en caliente (alcance mayor: implica
-reiniciar la fuente del collector). Restricciones frontend: sin build
-step ni CDN/webfonts, vanilla JS/CSS. Commits en español, sin emojis;
-push/tag solo con confirmacion explicita del usuario en ese turno.
-Nota capturas: chrome --headless=old (sin virtual-time-budget, el SSE
-cuelga el screenshot). Infra de smoke CDP reutilizable en
-C:\tmp_smoke\cdp_smoke.py, cdp_debug.py y cdp_hitoC.py (requiere
-websocket-client en el venv). Nota venv: si `pip install -e .` falla
-con .exe bloqueado, es el servidor demo corriendo — matarlo antes.
+(rama main; v3.4.0 en local con importador de capturas — browse + import
++ modal; 196 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md
+(changelog v3.4.0). Pendiente inmediato si no esta hecho: push + tag
+v3.4.0 (release.yml -> GitHub Release + PyPI) con confirmacion del
+usuario. Trabajo ulterior NO gated: solo los items 2 (adapter WebUI de
+Marauder reutilizando BruceWebClient) y 3 (parser IQ de HackRF) de la
+seccion 'Continuar', ambos gated por hardware/muestra real — sin
+dispositivo o fixture NO se escriben parsers (regla del proyecto).
+Restricciones frontend: sin build step ni CDN/webfonts, vanilla JS/CSS.
+Commits en español, sin emojis; push/tag solo con confirmacion explicita
+del usuario en ese turno. Nota capturas: chrome --headless=old (sin
+virtual-time-budget, el SSE cuelga el screenshot). Infra de smoke CDP en
+C:\tmp_smoke\ (cdp_smoke.py, cdp_debug.py, cdp_hitoC.py, cdp_import.py;
+requiere websocket-client en el venv). Nota venv: si `pip install -e .`
+falla con .exe bloqueado, es el servidor demo corriendo — matarlo antes.
 ```
 
 ---
@@ -351,6 +351,34 @@ m5stick-wireless-viewer/
 ---
 
 ## Changelog (cada entrada con su mini prompt)
+
+### v3.4.0 — importador de capturas desde el dashboard (en local, pendiente de tag)
+
+Cambios:
+- `GET /api/fs/browse`: navegador de ficheros (raiz = unidades en Windows).
+  Dirs + `.pcap`/`.cap` con size; tope 1000 entradas; ocultos ignorados.
+- `POST /api/import`: parsea un pcap o carpeta con `PcapParser` (source=
+  `sdcard`) y vierte los eventos por `collector.submit_events` -> store +
+  SSE en vivo (tabla, consola, exportes). `def` (threadpool de FastAPI)
+  porque el parseo es CPU-bound. Tope 64 MiB por fichero; errores por
+  fichero contados y devueltos en `messages` (tope 20).
+- Seguridad: ambos endpoints solo para clientes loopback (el servidor
+  escucha en 0.0.0.0 por el movil; el filesystem no se expone a la red).
+  `testclient` incluido en la lista para TestClient.
+- Frontend: boton "Importar" en el footer + modal (breadcrumb con subir,
+  lista dirs/pcaps, "Importar" por fichero y "Importar carpeta"); ESC y
+  clic fuera cierran; toast con el resultado. CSS del modal en style.css.
+- Tests: `tests/test_import_api.py` (9) — browse raiz/dir/404, import
+  fichero/dir-con-errores/422/404/409, gate loopback. Builders de pcap
+  reutilizados de `test_pcap_parser` (import entre modulos de test).
+- Validacion e2e: smoke CDP con el pcap REAL de Bruce
+  (`data/bruce_HS_*.pcap`, no commiteado): toast "Importados 2 eventos",
+  tabla 3->4 filas, consola con las lineas `mgmt ... ssid='MiFibra-B6E8'`.
+  Script: `C:\tmp_smoke\cdp_import.py` (ojo: el boton Subir llega
+  deshabilitado en la raiz; el script lo habilita para navegar directo).
+- README: seccion "Importar pcaps desde el dashboard".
+
+Mini prompt para retomar: el bloque 'PROMPT DE RETOMADA' del INICIO.
 
 ### Fase 1 — commit `61e1d20` (Fase 1 completa)
 

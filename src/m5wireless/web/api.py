@@ -15,8 +15,11 @@ from __future__ import annotations
 
 import csv
 import io
+import os
+import string
 from collections.abc import Iterator
 from datetime import datetime
+from pathlib import Path
 from typing import cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -30,8 +33,12 @@ from .schemas import (
     ClientRead,
     CollectorStats,
     ConsoleResponse,
+    FsBrowseResponse,
+    FsEntry,
     HealthResponse,
     HistoryRow,
+    ImportRequest,
+    ImportResponse,
     NetworkDetail,
     NetworkListResponse,
     StatusResponse,
@@ -109,6 +116,131 @@ def status(request: Request) -> StatusResponse:
         baudrate=int(baudrate) if isinstance(baudrate, int) else None,
         path=cast("str | None", info.get("path")),
         firmware=str(info["firmware"]),
+    )
+
+
+# ---- importador de capturas (pcaps grabados / SD montada en el PC) ----
+# El servidor por defecto escucha en 0.0.0.0 (acceso movil por LAN), asi que
+# el navegador de ficheros y la importacion quedan restringidos a clientes
+# loopback: el filesystem del anfitrion no se expone a la red.
+# "testclient" es el host que inyecta TestClient de starlette en los tests.
+
+_LOCAL_CLIENTS = frozenset({"127.0.0.1", "::1", "localhost", "testclient"})
+_IMPORT_EXTENSIONS = (".pcap", ".cap")
+_IMPORT_MAX_BYTES = 64 * 1024 * 1024  # defensa: un pcap gigante tumbaria la memoria
+_BROWSE_MAX_ENTRIES = 1000
+
+
+def _require_local(request: Request) -> None:
+    host = request.client.host if request.client is not None else ""
+    if host not in _LOCAL_CLIENTS:
+        raise HTTPException(status_code=403, detail="solo accesible desde localhost")
+
+
+def _list_root_entries() -> list[FsEntry]:
+    """Raiz del navegador: unidades de disco en Windows, / en POSIX."""
+    if os.name == "nt":
+        return [
+            FsEntry(name=f"{letter}:\\", path=f"{letter}:/", kind="dir")
+            for letter in string.ascii_uppercase
+            if Path(f"{letter}:/").exists()
+        ]
+    return [FsEntry(name="/", path="/", kind="dir")]
+
+
+@router.get("/api/fs/browse", response_model=FsBrowseResponse)
+def browse_fs(request: Request, path: str | None = Query(None)) -> FsBrowseResponse:
+    """Lista un directorio (dirs + pcaps/caps) para el modal importador."""
+    _require_local(request)
+    if not path:
+        return FsBrowseResponse(path=None, parent=None, entries=_list_root_entries())
+    root = Path(path)
+    if not root.is_dir():
+        raise HTTPException(status_code=404, detail=f"directorio no existe: {path}")
+    entries: list[FsEntry] = []
+    try:
+        children = sorted(root.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        for child in children:
+            if child.name.startswith("."):
+                continue
+            try:
+                if child.is_dir():
+                    entries.append(FsEntry(name=child.name, path=str(child), kind="dir"))
+                elif child.name.lower().endswith(_IMPORT_EXTENSIONS):
+                    entries.append(
+                        FsEntry(
+                            name=child.name,
+                            path=str(child),
+                            kind="file",
+                            size=child.stat().st_size,
+                        )
+                    )
+            except OSError:
+                continue  # entrada esvanecida (tarjeta extraida a mitad de scan)
+            if len(entries) >= _BROWSE_MAX_ENTRIES:
+                break
+    except OSError as exc:
+        raise HTTPException(status_code=404, detail=f"no se pudo leer {path}: {exc}") from exc
+    parent = str(root.parent) if root.parent != root else None
+    return FsBrowseResponse(path=str(root), parent=parent, entries=entries)
+
+
+@router.post("/api/import", response_model=ImportResponse)
+def import_captures(request: Request, body: ImportRequest) -> ImportResponse:
+    """Parsea un pcap o una carpeta de pcaps y los vuelca al pipeline en vivo.
+
+    `def` (no `async`): FastAPI lo ejecuta en el threadpool, y el parseo de
+    pcaps es CPU-bound. Los eventos entran por `collector.submit_events`, asi
+    que llegan a store + SSE igual que los de una fuente binaria.
+    """
+    _require_local(request)
+    collector = getattr(request.app.state, "collector", None)
+    if not isinstance(collector, Collector):
+        raise HTTPException(
+            status_code=409, detail="import requiere el servidor con collector en marcha"
+        )
+    target = Path(body.path)
+    if not target.exists():
+        raise HTTPException(status_code=404, detail=f"ruta no existe: {body.path}")
+
+    from ..parser.pcap import PcapParseError, PcapParser
+
+    parser = PcapParser()
+    counts = {"files": 0, "events": 0, "errors": 0}
+    messages: list[str] = []
+
+    def ingest(path: Path) -> None:
+        try:
+            if path.stat().st_size > _IMPORT_MAX_BYTES:
+                counts["errors"] += 1
+                messages.append(f"{path.name}: supera 64 MiB, omitido")
+                return
+            events = parser.parse(path.read_bytes(), source="sdcard")
+        except PcapParseError as exc:
+            counts["errors"] += 1
+            messages.append(f"{path.name}: {exc}")
+            return
+        except OSError as exc:
+            counts["errors"] += 1
+            messages.append(f"{path.name}: no legible ({exc})")
+            return
+        counts["files"] += 1
+        counts["events"] += len(events)
+        collector.submit_events(events)
+
+    if target.is_dir():
+        for path in sorted(target.rglob("*")):
+            if path.is_file() and path.name.lower().endswith(_IMPORT_EXTENSIONS):
+                ingest(path)
+    elif target.name.lower().endswith(_IMPORT_EXTENSIONS):
+        ingest(target)
+    else:
+        raise HTTPException(status_code=422, detail="extension no soportada (solo .pcap/.cap)")
+    return ImportResponse(
+        files=counts["files"],
+        events=counts["events"],
+        errors=counts["errors"],
+        messages=messages[:20],
     )
 
 

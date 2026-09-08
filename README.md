@@ -133,6 +133,19 @@ El directorio tambien se puede fijar con `M5W_SDCARD_DIR` o
 `m5wireless.toml` (`[run] sdcard_dir`). Los eventos se etiquetan como
 `sdcard` en el dashboard y los exportes.
 
+### Importar pcaps desde el dashboard
+
+Si el servidor ya esta en marcha con otra fuente (serial, demo…), el boton
+**Importar** del pie del dashboard abre un navegador de ficheros: eliges un
+`.pcap`/`.cap` o una carpeta completa (la SD montada, capturas sueltas) y
+sus eventos entran en vivo en la tabla, la consola y los exportes, igual
+que los de una fuente binaria. Solo procesa ficheros nuevos: el store
+absorbe las repeticiones, asi que reimportar una carpeta es barato.
+
+Solo es navegable desde el propio equipo (localhost): el servidor escucha
+en `0.0.0.0` por defecto para el acceso movil, y el filesystem del
+anfitrion no se expone a la red.
+
 ### Seguridad antes de usar la WebUI en campo
 
 Los defaults de fabrica del firmware Bruce son publicos:

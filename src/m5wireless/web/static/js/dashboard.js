@@ -862,12 +862,167 @@
     }
   }
 
+  // ---- importador de capturas (modal: navegar + importar pcaps) ----
+
+  const importModal = $("import-modal");
+  const importList = $("import-list");
+  const importPathEl = $("import-path");
+  const importUpBtn = $("import-up");
+  const importDirBtn = $("import-dir");
+  let importBusy = false;
+
+  function fmtSize(bytes) {
+    if (bytes === null || bytes === undefined) return "";
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} kB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  }
+
+  function importIcon(kind) {
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("width", "14");
+    svg.setAttribute("height", "14");
+    svg.setAttribute("viewBox", "0 0 24 24");
+    svg.setAttribute("fill", "none");
+    svg.setAttribute("stroke", "currentColor");
+    svg.setAttribute("stroke-width", "2");
+    svg.setAttribute("stroke-linecap", "round");
+    svg.setAttribute("stroke-linejoin", "round");
+    svg.setAttribute("aria-hidden", "true");
+    svg.innerHTML =
+      kind === "dir"
+        ? '<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'
+        : '<path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 19h16"/>';
+    return svg;
+  }
+
+  async function browseTo(path) {
+    const url =
+      path === null || path === undefined
+        ? "/api/fs/browse"
+        : `/api/fs/browse?path=${encodeURIComponent(path)}`;
+    let data;
+    try {
+      data = await fetchJSON(url);
+    } catch (err) {
+      showToast(`No se pudo listar el directorio: ${err.message}`, "error");
+      return;
+    }
+    importPathEl.textContent = data.path ?? "unidades";
+    importPathEl.dataset.path = data.path ?? "";
+    importUpBtn.disabled = !data.parent;
+    importUpBtn.dataset.path = data.parent ?? "";
+    importDirBtn.disabled = !data.path || importBusy;
+    importDirBtn.dataset.path = data.path ?? "";
+    importList.textContent = "";
+    const frag = document.createDocumentFragment();
+    for (const entry of data.entries) {
+      const li = document.createElement("li");
+      li.className = "import-row";
+      const main = document.createElement("button");
+      main.type = "button";
+      main.className = `import-entry import-${entry.kind}`;
+      const name = document.createElement("span");
+      name.textContent = entry.name;
+      main.append(importIcon(entry.kind), name);
+      if (entry.kind === "dir") {
+        main.title = "Abrir carpeta";
+        main.addEventListener("click", () => browseTo(entry.path));
+      } else {
+        const size = document.createElement("span");
+        size.className = "import-size mono";
+        size.textContent = fmtSize(entry.size);
+        main.appendChild(size);
+        main.title = entry.path;
+        const imp = document.createElement("button");
+        imp.type = "button";
+        imp.className = "btn btn-sm btn-primary";
+        imp.textContent = "Importar";
+        imp.addEventListener("click", () => doImport(entry.path, imp));
+        li.append(main, imp);
+        frag.appendChild(li);
+        continue;
+      }
+      li.appendChild(main);
+      frag.appendChild(li);
+    }
+    if (data.entries.length === 0) {
+      const li = document.createElement("li");
+      li.className = "import-empty";
+      li.textContent = "Sin carpetas ni pcaps aquí.";
+      frag.appendChild(li);
+    }
+    importList.appendChild(frag);
+  }
+
+  async function doImport(path, btn) {
+    if (importBusy) return;
+    importBusy = true;
+    importDirBtn.disabled = true;
+    const orig = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = "Importando…";
+    try {
+      const res = await fetch("/api/import", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.detail || `HTTP ${res.status}`);
+      const detail =
+        data.errors > 0 && data.messages.length > 0 ? ` — ${data.messages[0]}` : "";
+      showToast(
+        `Importados ${data.events} eventos de ${data.files} pcap(s)${detail}`,
+        data.errors > 0 ? "warn" : "info"
+      );
+      closeImport();
+    } catch (err) {
+      showToast(`Import fallido: ${err.message}`, "error");
+    } finally {
+      importBusy = false;
+      btn.disabled = false;
+      btn.textContent = orig;
+      importDirBtn.disabled = false;
+    }
+  }
+
+  function openImport() {
+    importModal.hidden = false;
+    browseTo(null);
+  }
+
+  function closeImport() {
+    importModal.hidden = true;
+  }
+
+  function bindImportControls() {
+    $("import-open").addEventListener("click", openImport);
+    $("import-close").addEventListener("click", closeImport);
+    importUpBtn.addEventListener("click", () => {
+      const parent = importUpBtn.dataset.path;
+      browseTo(parent || null);
+    });
+    importDirBtn.addEventListener("click", () => {
+      const path = importDirBtn.dataset.path;
+      if (path) doImport(path, importDirBtn);
+    });
+    // Cierre con ESC y clic fuera del dialogo.
+    importModal.addEventListener("click", (e) => {
+      if (e.target === importModal) closeImport();
+    });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !importModal.hidden) closeImport();
+    });
+  }
+
   // ---- arranque ----
 
   async function init() {
     loadFilters();
     bindControls();
     bindConsoleControls();
+    bindImportControls();
     renderChips();
     showSkeletons();
     try {
