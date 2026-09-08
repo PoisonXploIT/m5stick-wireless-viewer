@@ -4,12 +4,12 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: Plan UI/UX v2 COMPLETO (Hitos A, B y C en main:
-5e3b775..60cab65 ya empujados + 38f14e9 local; 187 tests, ruff +
-mypy --strict limpios).
-Roadmap actual: release 3.3.0 (bump pyproject.toml, reinstalar editable en
-.venv, tag v3.3.0, push). Items gated por hardware en seccion
-'Continuar': Marauder WebUI e IQ HackRF.
+Última actualización: v3.3.0 publicada (tag v3.3.0 -> GitHub Release +
+PyPI via trusted publishing; Plan UI/UX v2 completo con los Hitos A, B
+y C; 187 tests, ruff + mypy --strict limpios).
+Roadmap actual: seccion 'Continuar' — unificacion de fuentes; quedan los
+items 2 (Marauder WebUI) y 3 (IQ HackRF), ambos gated por
+hardware/muestra real.
 
 ---
 
@@ -21,19 +21,22 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; Plan UI/UX v2 completo: Hitos A+B+C; 187 tests; ruff +
-mypy --strict limpios). Lee SEGUIMIENTO.md. Siguiente paso: release
-3.3.0 — bump de version en pyproject.toml, reinstalar el paquete en
-editable en .venv (si no, el test de packaging lee la version vieja),
-pytest + ruff + mypy, commit, push main, y tag v3.3.0 con confirmacion
-del usuario (dispara release.yml -> GitHub Release + PyPI via trusted
-publishing). Backlog tras el release: items gated por hardware en
-'Continuar' (Marauder WebUI, IQ HackRF). Restricciones frontend: sin
-build step ni CDN/webfonts, vanilla JS/CSS. Commits en español, sin
-emojis. Nota capturas: chrome --headless=old (sin virtual-time-budget,
-el SSE cuelga el screenshot). Infra de smoke CDP reutilizable en
-C:\tmp_smoke\cdp_smoke.py, cdp_debug.py y cdp_hitoC.py (este último
-ejercita empty state de filtros; requiere websocket-client en el venv).
+(rama main; v3.3.0 publicada en PyPI con el Plan UI/UX v2 completo;
+187 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md. Trabajo
+pendiente NO gated: solo los items 2 (adapter WebUI de Marauder
+reutilizando BruceWebClient) y 3 (parser IQ de HackRF) de la seccion
+'Continuar', ambos gated por hardware/muestra real — sin dispositivo o
+fixture NO se escriben parsers (regla del proyecto). Tambien
+disponibles como trabajo no gated: tiempos relativos en "ultima vista"
+del indice, selector de fuente en caliente (alcance mayor: implica
+reiniciar la fuente del collector). Restricciones frontend: sin build
+step ni CDN/webfonts, vanilla JS/CSS. Commits en español, sin emojis;
+push/tag solo con confirmacion explicita del usuario en ese turno.
+Nota capturas: chrome --headless=old (sin virtual-time-budget, el SSE
+cuelga el screenshot). Infra de smoke CDP reutilizable en
+C:\tmp_smoke\cdp_smoke.py, cdp_debug.py y cdp_hitoC.py (requiere
+websocket-client en el venv). Nota venv: si `pip install -e .` falla
+con .exe bloqueado, es el servidor demo corriendo — matarlo antes.
 ```
 
 ---
@@ -785,7 +788,9 @@ expone stats del collector; `/api/status` existe).
   smoke CDP sin excepciones JS (3 filas, stats 11·8·0, consola 8 líneas,
   empty state de filtros con botón limpiar funcional) y capturas
   escritorio 1440px + móvil 390px verificadas.
-- C6. **Release**: bump a 3.3.0 pendiente de cierre (ver prompt).
+- C6. **Release**: COMPLETO — bump 3.3.0, tag v3.3.0 empujado;
+  release.yml verde; GitHub Release con whl + sdist; PyPI muestra 3.3.0
+  (trusted publishing).
 - Decisiones: dedupe de toasts en 8 s (el poll de 5 s no puede spammear);
   el contenido nunca depende de la animación del shimmer (regla del
   proyecto); grid de KPIs pasa a 4 columnas (móvil: pipeline a ancho
