@@ -4,10 +4,9 @@ Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/camb
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
 tras overflow de contexto, sin necesidad de compactar.
 
-Última actualización: v3.4.0 en local (importador de capturas desde el
-dashboard: /api/fs/browse + /api/import + modal; 196 tests, ruff +
-mypy --strict limpios). Pendiente: push + tag v3.4.0 con confirmacion
-del usuario.
+Última actualización: v3.4.0 publicada (tag v3.4.0 -> GitHub Release +
+PyPI; importador de capturas desde el dashboard; 196 tests, ruff +
+mypy --strict limpios).
 Roadmap actual: seccion 'Continuar' — unificacion de fuentes; quedan los
 items 2 (Marauder WebUI) y 3 (IQ HackRF), ambos gated por
 hardware/muestra real.
@@ -22,11 +21,9 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 
 ```text
 Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
-(rama main; v3.4.0 en local con importador de capturas — browse + import
-+ modal; 196 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md
-(changelog v3.4.0). Pendiente inmediato si no esta hecho: push + tag
-v3.4.0 (release.yml -> GitHub Release + PyPI) con confirmacion del
-usuario. Trabajo ulterior NO gated: solo los items 2 (adapter WebUI de
+(rama main; v3.4.0 publicada en PyPI con importador de capturas;
+196 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md (changelog
+v3.4.0). Trabajo ulterior NO gated: solo los items 2 (adapter WebUI de
 Marauder reutilizando BruceWebClient) y 3 (parser IQ de HackRF) de la
 seccion 'Continuar', ambos gated por hardware/muestra real — sin
 dispositivo o fixture NO se escriben parsers (regla del proyecto).
@@ -352,7 +349,7 @@ m5stick-wireless-viewer/
 
 ## Changelog (cada entrada con su mini prompt)
 
-### v3.4.0 — importador de capturas desde el dashboard (en local, pendiente de tag)
+### v3.4.0 — importador de capturas desde el dashboard (publicada en PyPI)
 
 Cambios:
 - `GET /api/fs/browse`: navegador de ficheros (raiz = unidades en Windows).
