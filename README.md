@@ -1,4 +1,4 @@
-# m5stick-wireless-viewer
+# m5wireless
 
 Pipeline de datos y dashboard para firmwares de hardware hacking WiFi en ESP32.
 
