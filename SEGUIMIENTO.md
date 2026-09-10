@@ -1,4 +1,4 @@
-# SEGUIMIENTO — m5stick-wireless-viewer
+# SEGUIMIENTO — m5wireless (repo; paquete PyPI: m5stick-wireless-viewer)
 
 Documento de seguimiento para vaciar contexto sin perder el hilo. Cada fase/cambio
 lleva su **mini prompt**: bloques copy-paste para situar a un agente en sesión nueva
@@ -10,6 +10,9 @@ mypy --strict limpios).
 Roadmap actual: seccion 'Continuar' — unificacion de fuentes; quedan los
 items 2 (Marauder WebUI) y 3 (IQ HackRF), ambos gated por
 hardware/muestra real.
+Repo renombrado a `PoisonXploIT/m5wireless` (2026-09-10); la URL vieja
+redirige con 301. El paquete de PyPI sigue siendo `m5stick-wireless-viewer`
+deliberadamente (ver changelog).
 
 ---
 
@@ -20,7 +23,8 @@ No duplicar en otras secciones (motivo: el prompt duplicado de la seccion
 'Continuar' derivó y quedó obsoleto apuntando a v3.1).
 
 ```text
-Continúa m5stick-wireless-viewer en C:\Users\Sammi\m5stick-wireless-viewer
+Continúa m5wireless (repo github.com/PoisonXploIT/m5wireless; el paquete
+de PyPI sigue siendo m5stick-wireless-viewer) en C:\Users\Sammi\m5stick-wireless-viewer
 (rama main; v3.4.0 publicada en PyPI con importador de capturas;
 196 tests; ruff + mypy --strict limpios). Lee SEGUIMIENTO.md (changelog
 v3.4.0). Trabajo ulterior NO gated: solo los items 2 (adapter WebUI de
@@ -42,7 +46,7 @@ falla con .exe bloqueado, es el servidor demo corriendo — matarlo antes.
 
 | Item | Estado |
 |------|--------|
-| Fase 0 (preparación) | **Completa** — repo remoto `PoisonXploIT/m5stick-wireless-viewer` (renombrado desde Visualizacion_extendida; historia vieja en rama `legacy-visualizacion-v2`) |
+| Fase 0 (preparación) | **Completa** — repo remoto `PoisonXploIT/m5wireless` (creado como Visualizacion_extendida, luego `m5stick-wireless-viewer` y renombrado a `m5wireless` el 2026-09-10; historia vieja en rama `legacy-visualizacion-v2`) |
 | Fase 1 (modelos + parsers) | **Completa** — commit `61e1d20` |
 | Fase 2 (stores + sources + collector) | **Completa** — commit `09baa37` |
 | Fase 3 (backend web FastAPI + SSE) | **Completa** — commit `3590475` |
@@ -348,6 +352,25 @@ m5stick-wireless-viewer/
 ---
 
 ## Changelog (cada entrada con su mini prompt)
+
+### Rename del repo a m5wireless + descripcion actualizada (2026-09-10)
+
+- Repo renombrado: `PoisonXploIT/m5stick-wireless-viewer` -> `PoisonXploIT/m5wireless`
+  (`gh repo rename`). La URL vieja redirige con 301; no se rompe ningun enlace
+  externo (home del blog, READMEs, docs).
+- Descripcion del repo actualizada en ingles (pipeline + dashboard WiFi M5Stick,
+  FastAPI + SSE, SQLite, Splunk HEC, CLI, Docker, PyPI).
+- README: titulo `# m5wireless`.
+- **El paquete de PyPI NO se renombra**: sigue siendo `m5stick-wireless-viewer`
+  (`pip install m5stick-wireless-viewer[serial,web,splunk]`). Renombrarlo
+  huérfanaria el nombre viejo y rompería instalaciones existentes; el trusted
+  publishing de PyPI se liga por ID del repo (no por nombre), así que las
+  releases siguen funcionando sin cambios. Si algún día se cambia el paquete,
+  es un proyecto aparte: publicar `m5wireless` en PyPI y dejar el antiguo como
+  alias de transicion.
+- Home del blog (`content/index.md`): enlace directo a `github.com/PoisonXploIT/m5wireless`.
+- La carpeta local sigue siendo `C:\Users\Sammi\m5stick-wireless-viewer` (no renombrada;
+  el remote ya apunta al nuevo nombre).
 
 ### v3.4.0 — importador de capturas desde el dashboard (publicada en PyPI)
 
@@ -722,7 +745,7 @@ LittleFS). Marauder/Flipper/HackRF/Hound: por confirmar.
 ## Pendientes / riesgos abiertos
 
 - **Fixtures no verificados contra log real**: los fixtures reproducen el formato documentado en el código original; la primera corrida contra M5Stick real puede revelar líneas que no parsean (riesgo §17 del plan: añadir test de equivalencia old/new).
-- **Repo remoto**: activo (`github.com/PoisonXploIT/m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
+- **Repo remoto**: activo (`github.com/PoisonXploIT/m5wireless`, antes `m5stick-wireless-viewer`); v3.0.2 publicada en GitHub y PyPI (fix demo_scan.log).
 - **v3.2 Bruce**: v3.2.0 publicada (parsers consola/pcap + `BruceStorageSource`, E2E serial con sniffer real COMPLETADA). v3.2.1 COMPLETADA y validada en hardware (ver 'Validacion final con hardware'): `BruceWebClient` + `BruceWebSource` + CLI `bruce info/reboot/cmd`, `/reboot` real, cmp HTTP vs serial identico.
 - **Python version note**: `pyproject` pide >=3.11 (tomllib, dataclass slots, union types en runtime).
 
